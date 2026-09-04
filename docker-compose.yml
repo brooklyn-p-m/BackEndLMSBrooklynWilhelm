@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16
+    container_name: lmsapp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lmsapp
+      POSTGRES_PASSWORD: lmsapp_dev_pw
+      POSTGRES_DB: lmsapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - lmsapp_pgdata:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: .
+      dockerfile: ./DockerFile
+    container_name: lmsapp-web
+    depends_on:
+      - db
+    ports:
+      - "5000:8080"
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=lmsapp;Username=lmsapp;Password=lmsapp_dev_pw"
+
+volumes:
+  lmsapp_pgdata:

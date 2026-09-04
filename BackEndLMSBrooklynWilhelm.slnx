@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="LMSapp.Logic/LMSapp.Logic.csproj" />
+  <Project Path="LMSapp.Web/LMSapp.Web.csproj" />
+</Solution>
