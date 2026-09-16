@@ -10,6 +10,15 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<CourseService>();
+builder.Services.AddScoped<InstructorService>();
+builder.Services.AddScoped<StudentService>();
+builder.Services.AddScoped<EnrollmentService>();
+builder.Services.AddScoped<AssignmentService>();
+builder.Services.AddScoped<SubmissionService>();
+builder.Services.AddScoped<TodoService>();
+builder.Services.AddScoped<AppUserService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
