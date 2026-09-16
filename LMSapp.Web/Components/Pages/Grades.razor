@@ -1,0 +1,179 @@
+@page "/grades"
+@inject NavigationManager NavManager
+
+<div class="lms-page">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn active" @onclick='() => NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/calendar")'>Calendar</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/settings")'>Settings</button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>Grades & Academic Standing</h1>
+                <p>Review your semester performance, calculated GPA, and course evaluations.</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick="DownloadTranscript">Export Transcript</button>
+                <button class="btn btn-primary" @onclick="GoToGraduationAudit">Degree Audit</button>
+            </div>
+        </header>
+
+        <!-- Term Summary Cards -->
+        <section class="section">
+            <div class="summary-cards">
+                <div class="stat-card">
+                    <span class="stat-label">Term GPA</span>
+                    <strong class="stat-value">3.72</strong>
+                    <span class="stat-sub">Fall 2026</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Cumulative GPA</span>
+                    <strong class="stat-value">3.65</strong>
+                    <span class="stat-sub">Total Credits: 45</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Academic Standing</span>
+                    <strong class="stat-value text-success">Good Standing</strong>
+                    <span class="stat-sub">Dean's List Eligible</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Term Selector & Course Breakdown -->
+        <section class="section">
+            <div class="section-toolbar">
+                <h2>Current Term Grades</h2>
+                <div class="select-wrapper">
+                    <label for="term-select">Select Term: </label>
+                    <select id="term-select" class="term-dropdown" @onchange="OnTermChanged">
+                        <option value="Fall 2026">Fall 2026 (Current)</option>
+                        <option value="Spring 2026">Spring 2026</option>
+                        <option value="Fall 2025">Fall 2025</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Grades Table -->
+            <div class="table-container">
+                <table class="grades-table">
+                    <thead>
+                        <tr>
+                            <th>Course</th>
+                            <th>Credits</th>
+                            <th>Score</th>
+                            <th>Current Letter</th>
+                            <th>Submitted Work</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var course in TermGrades)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@course.Code</strong>
+                                    <div class="course-sub">@course.Title</div>
+                                </td>
+                                <td>@course.Credits</td>
+                                <td>@course.Percentage%</td>
+                                <td>
+                                    <span class="letter-grade @GetGradeClass(course.LetterGrade)">
+                                        @course.LetterGrade
+                                    </span>
+                                </td>
+                                <td>@course.CompletedTasks of @course.TotalTasks Complete</td>
+                                <td>
+                                    <button class="btn-small" @onclick="() => ViewCourseGradeDetails(course.Id)">
+                                        View Breakdown
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Grade Calculation Notice -->
+        <section class="section">
+            <div class="info-box">
+                <strong>Need to simulate changes?</strong> Calculate what scores you need on final exams to keep or improve your standing.
+                <button class="btn btn-outline" @onclick="OpenGpaCalculator">Open What-If Calculator</button>
+            </div>
+        </section>
+    </main>
+</div>
+
+@code {
+    private void NavigateTo(string route)
+    {
+        NavManager.NavigateTo(route);
+    }
+
+    // Button event handlers ready for logic
+    private void ViewCourseGradeDetails(int courseId)
+    {
+        NavigateTo($"/grades/course/{courseId}");
+    }
+
+    private void DownloadTranscript()
+    {
+        NavigateTo("/grades/transcript");
+    }
+
+    private void GoToGraduationAudit()
+    {
+        NavigateTo("/grades/audit");
+    }
+
+    private void OpenGpaCalculator()
+    {
+        NavigateTo("/grades/calculator");
+    }
+
+    private void OnTermChanged(ChangeEventArgs e)
+    {
+        var selectedTerm = e.Value?.ToString();
+        // Hook up logic here to load term records dynamically
+        Console.WriteLine($"Selected term: {selectedTerm}");
+    }
+
+    private string GetGradeClass(string grade) => grade switch
+    {
+        "A" or "A-" => "grade-a",
+        "B+" or "B" or "B-" => "grade-b",
+        "C+" or "C" or "C-" => "grade-c",
+        _ => "grade-other"
+    };
+
+    // Model & Initial Data
+    private record GradeRecord(
+        int Id,
+        string Code,
+        string Title,
+        int Credits,
+        double Percentage,
+        string LetterGrade,
+        int CompletedTasks,
+        int TotalTasks
+    );
+
+    private List<GradeRecord> TermGrades = new()
+    {
+        new(1, "CS 1010", "Introduction to Programming", 4, 94.5, "A", 8, 10),
+        new(2, "MATH 1050", "College Algebra", 4, 88.2, "B+", 6, 9),
+        new(3, "ENGL 1010", "Expository Writing", 3, 91.0, "A-", 7, 8),
+        new(4, "COMM 1020", "Public Speaking", 3, 84.0, "B", 5, 7)
+    };
+}
