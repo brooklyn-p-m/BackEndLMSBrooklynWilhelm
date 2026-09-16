@@ -1,3 +1,108 @@
 ﻿@page "/"
+@inject NavigationManager NavManager
 
+<div class="lms-page">
+    <!-- Simple Sidebar -->
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        
+        <nav class="nav-links">
+            <button class="nav-btn active" @onclick='() => NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/calendar")'>Calendar</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/settings")'>Settings</button>
+        </nav>
+    </aside>
 
+    <!-- Main Content -->
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>Student Dashboard</h1>
+                <p>Welcome back! Select a section below to get started.</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick="GoToAnnouncements">Announcements</button>
+                <button class="btn btn-primary" @onclick="GoToProfile">My Profile</button>
+            </div>
+        </header>
+
+        <!-- Quick Links -->
+        <section class="section">
+            <h2>Quick Actions</h2>
+            <div class="button-group">
+                <button class="action-btn" @onclick="GoToAssignments">View Assignments</button>
+                <button class="action-btn" @onclick="GoToCourseCatalog">Course Catalog</button>
+                <button class="action-btn" @onclick="GoToResources">Files & Resources</button>
+                <button class="action-btn" @onclick="GoToDiscussions">Class Discussions</button>
+            </div>
+        </section>
+
+        <!-- Current Classes -->
+        <section class="section">
+            <h2>My Courses</h2>
+            <div class="course-list">
+                @foreach (var course in EnrolledCourses)
+                {
+                    <div class="course-card">
+                        <h3>@course.Code: @course.Title</h3>
+                        <p>Instructor: @course.Instructor</p>
+                        <p>Progress: @course.Progress%</p>
+                        <button class="btn btn-primary" @onclick="() => OpenCourse(course.Id)">
+                            Go to Class
+                        </button>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <!-- Upcoming Tasks -->
+        <section class="section">
+            <h2>Upcoming Deadlines</h2>
+            <ul class="task-list">
+                <li>
+                    <strong>Homework 1</strong> — CS 1010 (Due Tomorrow)
+                    <button class="btn-small" @onclick="() => OpenTask(1)">Open</button>
+                </li>
+                <li>
+                    <strong>Chapter 2 Quiz</strong> — MATH 1050 (Due Friday)
+                    <button class="btn-small" @onclick="() => OpenTask(2)">Open</button>
+                </li>
+                <li>
+                    <strong>Discussion Post</strong> — ENGL 1010 (Due Sunday)
+                    <button class="btn-small" @onclick="() => OpenTask(3)">Open</button>
+                </li>
+            </ul>
+        </section>
+    </main>
+</div>
+
+@code {
+    // Basic Navigation Handler
+    private void NavigateTo(string route)
+    {
+        NavManager.NavigateTo(route);
+    }
+
+    // Button event methods ready for your custom code
+    private void GoToAnnouncements() => NavigateTo("/announcements");
+    private void GoToProfile() => NavigateTo("/profile");
+    private void GoToAssignments() => NavigateTo("/assignments");
+    private void GoToCourseCatalog() => NavigateTo("/courses/catalog");
+    private void GoToResources() => NavigateTo("/resources");
+    private void GoToDiscussions() => NavigateTo("/discussions");
+    private void OpenCourse(int id) => NavigateTo($"/courses/{id}");
+    private void OpenTask(int id) => NavigateTo($"/tasks/{id}");
+
+    // Course Data Record
+    private record Course(int Id, string Code, string Title, string Instructor, int Progress);
+
+    private List<Course> EnrolledCourses = new()
+    {
+        new(1, "CS 1010", "Introduction to Programming", "Smith", 75),
+        new(2, "MATH 1050", "College Algebra", "Johnson", 60),
+        new(3, "ENGL 1010", "Expository Writing", "Davis", 90)
+    };
+}
