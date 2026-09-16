@@ -1,0 +1,213 @@
+@page "/calendar"
+@inject NavigationManager NavManager
+
+<div class="lms-page">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn active" @onclick='() => NavigateTo("/calendar")'>Calendar</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/settings")'>Settings</button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>Schedule & Deadlines</h1>
+                <p>View upcoming lecture sessions, exams, and assignment due dates.</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick="GoToToday">Today</button>
+                <button class="btn btn-primary" @onclick="AddPersonalEvent">+ Add Event</button>
+            </div>
+        </header>
+
+        <div class="calendar-layout">
+            <!-- Left Side: Main Calendar View -->
+            <div class="calendar-main">
+                <!-- Month / Year Controls -->
+                <div class="month-controls">
+                    <h2>@CurrentMonthYearString</h2>
+                    <div class="nav-arrows">
+                        <button class="btn-small" @onclick="PreviousMonth">❮ Previous</button>
+                        <button class="btn-small" @onclick="NextMonth">Next ❯</button>
+                    </div>
+                </div>
+
+                <!-- Calendar Grid -->
+                <div class="calendar-grid">
+                    <!-- Day Labels -->
+                    <div class="day-header">Sun</div>
+                    <div class="day-header">Mon</div>
+                    <div class="day-header">Tue</div>
+                    <div class="day-header">Wed</div>
+                    <div class="day-header">Thu</div>
+                    <div class="day-header">Fri</div>
+                    <div class="day-header">Sat</div>
+
+                    <!-- Day Cells -->
+                    @for (int i = 0; i < StartingDayOffset; i++)
+                    {
+                        <div class="day-cell empty"></div>
+                    }
+
+                    @for (int day = 1; day <= DaysInCurrentMonth; day++)
+                    {
+                        var currentDay = day;
+                        var eventsForDay = GetEventsForDay(currentDay);
+                        var isToday = currentDay == CurrentDate.Day && 
+                                      CurrentMonth == CurrentDate.Month && 
+                                      CurrentYear == CurrentDate.Year;
+
+                        <div class="day-cell @(isToday ? "today" : "")" @onclick="() => SelectDay(currentDay)">
+                            <span class="day-number">@currentDay</span>
+                            
+                            <div class="cell-events">
+                                @foreach (var ev in eventsForDay)
+                                {
+                                    <span class="event-chip @ev.Type.ToLower()" title="@ev.Title (@ev.CourseCode)">
+                                        @ev.Title
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Right Side: Selected Date Agenda -->
+            <aside class="agenda-sidebar">
+                <h3>Agenda for @SelectedDateString</h3>
+
+                @if (SelectedDayEvents.Any())
+                {
+                    <div class="agenda-list">
+                        @foreach (var ev in SelectedDayEvents)
+                        {
+                            <div class="agenda-item">
+                                <div class="agenda-time">@ev.Time</div>
+                                <div class="agenda-info">
+                                    <strong>@ev.Title</strong>
+                                    <span>@ev.CourseCode</span>
+                                </div>
+                                <button class="btn-small" @onclick="() => OpenEventDetails(ev.Id)">
+                                    View
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="empty-text">No events or deadlines scheduled for this day.</p>
+                }
+            </aside>
+        </div>
+    </main>
+</div>
+
+@code {
+    private DateTime CurrentDate = new DateTime(2026, 9, 15);
+    private int CurrentMonth = 9;
+    private int CurrentYear = 2026;
+    private int SelectedDay = 15;
+
+    private string CurrentMonthYearString => new DateTime(CurrentYear, CurrentMonth, 1).ToString("MMMM yyyy");
+    private string SelectedDateString => new DateTime(CurrentYear, CurrentMonth, SelectedDay).ToString("MMM d, yyyy");
+
+    private int DaysInCurrentMonth => DateTime.DaysInMonth(CurrentYear, CurrentMonth);
+    private int StartingDayOffset => (int)new DateTime(CurrentYear, CurrentMonth, 1).DayOfWeek;
+
+    // Navigation methods
+    private void NavigateTo(string route)
+    {
+        NavManager.NavigateTo(route);
+    }
+
+    // Calendar Navigation Handlers
+    private void PreviousMonth()
+    {
+        if (CurrentMonth == 1)
+        {
+            CurrentMonth = 12;
+            CurrentYear--;
+        }
+        else
+        {
+            CurrentMonth--;
+        }
+        SelectedDay = 1;
+    }
+
+    private void NextMonth()
+    {
+        if (CurrentMonth == 12)
+        {
+            CurrentMonth = 1;
+            CurrentYear++;
+        }
+        else
+        {
+            CurrentMonth++;
+        }
+        SelectedDay = 1;
+    }
+
+    private void GoToToday()
+    {
+        CurrentMonth = 9;
+        CurrentYear = 2026;
+        SelectedDay = 15;
+    }
+
+    private void SelectDay(int day)
+    {
+        SelectedDay = day;
+    }
+
+    private void AddPersonalEvent()
+    {
+        NavigateTo("/calendar/new-event");
+    }
+
+    private void OpenEventDetails(int id)
+    {
+        NavigateTo($"/events/{id}");
+    }
+
+    // Events Lookup
+    private IEnumerable<CalendarEvent> GetEventsForDay(int day)
+    {
+        return EventList.Where(e => e.Year == CurrentYear && e.Month == CurrentMonth && e.Day == day);
+    }
+
+    private IEnumerable<CalendarEvent> SelectedDayEvents => GetEventsForDay(SelectedDay);
+
+    // Event Model & Initial Demo Data
+    private record CalendarEvent(
+        int Id, 
+        int Year, 
+        int Month, 
+        int Day, 
+        string Time, 
+        string Title, 
+        string CourseCode, 
+        string Type
+    );
+
+    private List<CalendarEvent> EventList = new()
+    {
+        new(1, 2026, 9, 15, "10:00 AM", "Live Lecture", "CS 1010", "lecture"),
+        new(2, 2026, 9, 16, "11:59 PM", "HW 1 Due", "CS 1010", "deadline"),
+        new(3, 2026, 9, 18, "5:00 PM", "Chapter 2 Quiz", "MATH 1050", "quiz"),
+        new(4, 2026, 9, 20, "11:59 PM", "Essay Outline Due", "ENGL 1010", "deadline"),
+        new(5, 2026, 9, 24, "2:00 PM", "Review Session", "MATH 1050", "lecture")
+    };
+}
