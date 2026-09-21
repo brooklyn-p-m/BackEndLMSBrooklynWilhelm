@@ -47,12 +47,25 @@
                 @foreach (var course in EnrolledCourses)
                 {
                     <div class="course-card">
-                        <h3>@course.Code: @course.Title</h3>
-                        <p>Instructor: @course.Instructor</p>
-                        <p>Progress: @course.Progress%</p>
-                        <button class="btn btn-primary" @onclick="() => OpenCourse(course.Id)">
-                            Go to Class
-                        </button>
+                        <div class="course-card-header">
+                            <span class="course-badge">@course.Code</span>
+                            <h3>@course.Title</h3>
+                        </div>
+                         <p class="course-instructor">Instructor: @course.Instructor</p>
+    
+                        <div class="progress-section">
+                         <div class="progress-info">
+                        <span>Progress</span>
+                        <span>@course.Progress%</span>
+                    </div>
+                    <div class="progress-track" role="progressbar" aria-valuenow="@course.Progress" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-fill" style="width: @course.Progress%;"></div>
+                    </div>
+                    </div>
+
+                     <button class="btn btn-primary" @onclick="() => OpenCourse(course.Id)">
+                         Go to Class
+                     </button>
                     </div>
                 }
             </div>
@@ -60,18 +73,30 @@
 
         <!-- Upcoming Tasks -->
         <section class="section">
-            <h2>Upcoming Deadlines</h2>
-            <ul class="task-list">
-                <li>
-                    <strong>Homework 1</strong> — CS 1010 (Due Tomorrow)
+        <h2>Upcoming Deadlines</h2>
+             <ul class="task-list">
+                <li class="task-item">
+                    <div class="task-details">
+                        <span class="task-title">Homework 1</span>
+                        <span class="course-tag">CS 1010</span>
+                        <span class="due-badge due-urgent">Due Tomorrow</span>
+                    </div>
                     <button class="btn-small" @onclick="() => OpenTask(1)">Open</button>
                 </li>
-                <li>
-                    <strong>Chapter 2 Quiz</strong> — MATH 1050 (Due Friday)
+                <li class="task-item">
+                    <div class="task-details">
+                        <span class="task-title">Chapter 2 Quiz</span>
+                        <span class="course-tag">MATH 1050</span>
+                        <span class="due-badge due-warning">Due Friday</span>
+                    </div>
                     <button class="btn-small" @onclick="() => OpenTask(2)">Open</button>
                 </li>
-                <li>
-                    <strong>Discussion Post</strong> — ENGL 1010 (Due Sunday)
+                <li class="task-item">
+                    <div class="task-details">
+                        <span class="task-title">Discussion Post</span>
+                        <span class="course-tag">ENGL 1010</span>
+                        <span class="due-badge">Due Sunday</span>
+                    </div>
                     <button class="btn-small" @onclick="() => OpenTask(3)">Open</button>
                 </li>
             </ul>
