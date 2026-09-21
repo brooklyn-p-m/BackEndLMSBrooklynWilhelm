@@ -1,0 +1,163 @@
+@page "/settings"
+@page "/profile"
+@page "/resources"
+@page "/discussions"
+@page "/announcements"
+@page "/courses/catalog"
+@page "/courses/{courseId:int}"
+@page "/courses/{courseId:int}/modules"
+@page "/courses/{courseId:int}/assignments"
+@page "/courses/{courseId:int}/syllabus"
+@page "/assignments/archive"
+@page "/assignments/{id:int}/submit"
+@page "/assignments/{id:int}/submission"
+@page "/assignments/{id:int}/feedback"
+@page "/assignments/{id:int}"
+@page "/grades/course/{courseId:int}"
+@page "/grades/transcript"
+@page "/grades/audit"
+@page "/grades/calculator"
+@page "/calendar/new-event"
+@page "/events/{id:int}"
+@page "/tasks/{id:int}"
+@inject NavigationManager NavManager
+
+@layout MainLayout
+
+<div class="lms-page">
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/calendar")'>Calendar</button>
+            <button class="nav-btn" @onclick='() => NavigateTo("/settings")'>Settings</button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>@PageTitle</h1>
+                <p>@PageMessage</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick='() => NavigateTo("/")'>Back to Dashboard</button>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="info-box">
+                <strong>Coming soon.</strong>
+                This area is ready for future LMS functionality.
+            </div>
+        </section>
+    </main>
+</div>
+
+@code {
+    [Parameter] public int? CourseId { get; set; }
+    [Parameter] public int? Id { get; set; }
+
+    private string PageTitle => (RouteName) switch
+    {
+        "settings" => "Settings",
+        "profile" => "Profile",
+        "resources" => "Files & Resources",
+        "discussions" => "Class Discussions",
+        "announcements" => "Announcements",
+        "courses/catalog" => "Course Catalog",
+        "courses" => $"Course {CourseId}",
+        "courses/modules" => $"Course {CourseId} Modules",
+        "courses/assignments" => $"Course {CourseId} Assignments",
+        "courses/syllabus" => $"Course {CourseId} Syllabus",
+        "assignments/archive" => "Archived Assignments",
+        "assignments/submit" => $"Submit Assignment {Id}",
+        "assignments/submission" => $"Submission {Id}",
+        "assignments/feedback" => $"Feedback {Id}",
+        "assignments/details" => $"Assignment {Id}",
+        "grades/course" => $"Course Grade {CourseId}",
+        "grades/transcript" => "Transcript",
+        "grades/audit" => "Degree Audit",
+        "grades/calculator" => "What-If Calculator",
+        "calendar/new-event" => "New Event",
+        "events" => $"Event {Id}",
+        "tasks" => $"Task {Id}",
+        _ => "LMS Area"
+    };
+
+    private string PageMessage => (RouteName) switch
+    {
+        "settings" => "Manage your account and preferences.",
+        "profile" => "View your personal details and student profile.",
+        "resources" => "Access course files, documents, and learning materials.",
+        "discussions" => "Participate in course conversations and topics.",
+        "announcements" => "See important updates from your instructors.",
+        "courses/catalog" => "Explore available classes and course enrollment options.",
+        "courses" => $"You are viewing the selected course details for course {CourseId}.",
+        "courses/modules" => $"Course {CourseId} module content is ready to be added.",
+        "courses/assignments" => $"Assignment list for course {CourseId} is ready to be added.",
+        "courses/syllabus" => $"Syllabus details for course {CourseId} are being prepared.",
+        "assignments/archive" => "Browse previously completed or archived work.",
+        "assignments/submit" => $"Submit your work for assignment {Id}.",
+        "assignments/submission" => $"Review the existing submission for assignment {Id}.",
+        "assignments/feedback" => $"Open feedback for assignment {Id}.",
+        "assignments/details" => $"Detailed information for assignment {Id}.",
+        "grades/course" => $"See performance details for course {CourseId}.",
+        "grades/transcript" => "Export and review your academic transcript.",
+        "grades/audit" => "Check your graduation requirements and progress.",
+        "grades/calculator" => "Calculate the scores needed to reach your target GPA.",
+        "calendar/new-event" => "Create a personal event or reminder.",
+        "events" => $"Event details for event {Id}.",
+        "tasks" => $"Task details for task {Id}.",
+        _ => "This feature is ready for your next enhancement."
+    };
+
+    private string RouteName
+    {
+        get
+        {
+            var uri = NavManager.ToBaseRelativePath(NavManager.Uri);
+            if (string.IsNullOrWhiteSpace(uri)) return "home";
+
+            if (uri.StartsWith("courses/"))
+            {
+                if (uri == "courses/catalog") return "courses/catalog";
+                if (uri.StartsWith("courses/") && uri.Contains("/modules")) return "courses/modules";
+                if (uri.StartsWith("courses/") && uri.Contains("/assignments")) return "courses/assignments";
+                if (uri.StartsWith("courses/") && uri.Contains("/syllabus")) return "courses/syllabus";
+                if (uri.StartsWith("courses/")) return "courses";
+            }
+
+            if (uri.StartsWith("assignments/"))
+            {
+                if (uri == "assignments/archive") return "assignments/archive";
+                if (uri.Contains("/submit")) return "assignments/submit";
+                if (uri.Contains("/submission")) return "assignments/submission";
+                if (uri.Contains("/feedback")) return "assignments/feedback";
+                return "assignments/details";
+            }
+
+            if (uri.StartsWith("grades/"))
+            {
+                if (uri == "grades/transcript") return "grades/transcript";
+                if (uri == "grades/audit") return "grades/audit";
+                if (uri == "grades/calculator") return "grades/calculator";
+                if (uri.StartsWith("grades/course/")) return "grades/course";
+            }
+
+            if (uri == "calendar/new-event") return "calendar/new-event";
+            if (uri.StartsWith("events/")) return "events";
+            if (uri.StartsWith("tasks/")) return "tasks";
+
+            return uri;
+        }
+    }
+
+    private void NavigateTo(string route)
+    {
+        NavManager.NavigateTo(route);
+    }
+}
