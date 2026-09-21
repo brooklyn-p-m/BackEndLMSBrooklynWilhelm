@@ -15,17 +15,16 @@ public class InstructorService : IDataService<Instructor>
 
     public async Task<IEnumerable<Instructor>?> GetAllAsync()
     {
-        return await _context.Instructors.ToListAsync();
+        return await _context.Instructors.Where(i => i.IsDeleted == false).ToListAsync();
     }
 
-    public async Task<Instructor?> GetByUserIdAsync(int appUserId)
+    public async Task<Instructor?> GetByAppUserIdAsync(int appUserId)
     {
         return await _context.Instructors.FirstOrDefaultAsync(i => i.AppUserId == appUserId);
     }
 
     public async Task<Instructor> CreateAsync(Instructor instructor)
     {
-        instructor.EnrollmentDate = DateTime.Now;
         _context.Add(instructor);
         await _context.SaveChangesAsync();
         return instructor;
@@ -36,7 +35,8 @@ public class InstructorService : IDataService<Instructor>
         var instructorToUpdate = await _context.Instructors.FindAsync(instructor.InstructorId);
         if (instructorToUpdate is null) return null;
 
-        //no other revelant info to update
+        instructorToUpdate.Department = instructor.Department;
+        instructorToUpdate.Office = instructor.Office;
 
         await _context.SaveChangesAsync();
         return instructorToUpdate;

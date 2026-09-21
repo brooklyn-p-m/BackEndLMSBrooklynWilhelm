@@ -1,17 +1,17 @@
 public class Enrollments
 {
-    public int EnrollmentsId { get; set; }
-    public int StudentsId { get; set; }
-    public int CoursesId { get; set; }
-    public DateTime EnrollmentDate { get; set; }
+    public required int EnrollmentsId { get; set; }
+
+    public required int StudentsId { get; set; }
+    public required Students Student { get; set; }
+
+    public required int SectionsId { get; set; }
+    public required Sections Section { get; set; }
+
+    public DateTime EnrollDate { get; set; }
     public required EnrollmentStatus Status { get; set; }
+    public string? FinishGrade { get; set; }
     public bool IsDeleted { get; set; }
 
-    public required Students Student { get; set; }
-    public required Courses Course { get; set; }
-}
-
-public enum EnrollmentStatus
-{
-    Active = 1, Dropped = 0, Completed = 2
+    public ICollection<Submissions>? submissions { get; set; }
 }

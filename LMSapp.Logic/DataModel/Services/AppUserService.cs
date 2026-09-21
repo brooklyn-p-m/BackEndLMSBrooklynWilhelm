@@ -15,12 +15,16 @@ public class AppUserService : IDataService<AppUser>
 
     public async Task<IEnumerable<AppUser>?> GetAllAsync()
     {
-        return await _context.Users.ToListAsync();
+        return await _context.Users.Where(u => u.IsDeleted == false).ToListAsync();
+    }
+
+    public async Task<AppUser?> GetByLoginAsync(string login)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.Login == login);
     }
 
     public async Task<AppUser> CreateAsync(AppUser user)
     {
-        user.CreatedAt = DateTime.Now;
         _context.Add(user);
         await _context.SaveChangesAsync();
         return user;
@@ -34,6 +38,7 @@ public class AppUserService : IDataService<AppUser>
         userToUpdate.FirstName = user.FirstName;
         userToUpdate.LastName = user.LastName;
         userToUpdate.Email = user.Email;
+        userToUpdate.Phone = user.Phone;
 
         await _context.SaveChangesAsync();
         return userToUpdate;

@@ -8,24 +8,23 @@ public class AssignmentService : IDataService<Assignments>
         _context = context;
     }
 
-    public async Task<Assignments?> GetByIdAsync(int assignmentId)
+    public async Task<Assignments?> GetByIdAsync(int assignmentsId)
     {
-        return await _context.Assignments.FirstOrDefaultAsync(a => a.AssignmentsId == assignmentId);
+        return await _context.Assignments.FirstOrDefaultAsync(a => a.AssignmentsId == assignmentsId);
     }
 
     public async Task<IEnumerable<Assignments>?> GetAllAsync()
     {
-        return await _context.Assignments.ToListAsync();
+        return await _context.Assignments.Where(a => a.IsDeleted == false).ToListAsync();
     }
 
-    public async Task<IEnumerable<Assignments>?> GetByCourseAsync(int courseId)
+    public async Task<IEnumerable<Assignments>?> GetBySectionAsync(int sectionsId)
     {
-        return await _context.Assignments.Where(a => a.CoursesId == courseId).ToListAsync();
+        return await _context.Assignments.Where(a => a.SectionsId == sectionsId && a.IsDeleted == false).ToListAsync();
     }
 
     public async Task<Assignments> CreateAsync(Assignments assignment)
     {
-        assignment.CreatedAt = DateTime.Now;
         _context.Add(assignment);
         await _context.SaveChangesAsync();
         return assignment;
@@ -36,18 +35,20 @@ public class AssignmentService : IDataService<Assignments>
         var assignmentToUpdate = await _context.Assignments.FindAsync(assignment.AssignmentsId);
         if (assignmentToUpdate is null) return null;
 
-        assignmentToUpdate.Title = assignment.Title;
-        assignmentToUpdate.Description = assignment.Description;
+        assignmentToUpdate.AssignName = assignment.AssignName;
         assignmentToUpdate.DueDate = assignment.DueDate;
+        assignmentToUpdate.LockDate = assignment.LockDate;
+        assignmentToUpdate.AvailableDate = assignment.AvailableDate;
+        assignmentToUpdate.Url = assignment.Url;
         assignmentToUpdate.MaxPoints = assignment.MaxPoints;
 
         await _context.SaveChangesAsync();
         return assignmentToUpdate;
     }
 
-    public async Task<bool> DeleteAsync(int assignmentId)
+    public async Task<bool> DeleteAsync(int assignmentsId)
     {
-        var assignmentToDelete = await _context.Assignments.Where(a => a.IsDeleted == false && a.AssignmentsId == assignmentId).SingleOrDefaultAsync();
+        var assignmentToDelete = await _context.Assignments.Where(a => a.IsDeleted == false && a.AssignmentsId == assignmentsId).SingleOrDefaultAsync();
         if (assignmentToDelete is null) return false;
 
         assignmentToDelete.IsDeleted = true;

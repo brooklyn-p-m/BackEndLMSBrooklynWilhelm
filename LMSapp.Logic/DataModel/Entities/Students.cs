@@ -1,11 +1,15 @@
 public class Students
 {
-    public int StudentsId { get; set; }
-    public int AppUserId { get; set; }
+    public required int StudentsId { get; set; }
+
+    public required int AppUserId { get; set; }
     public required AppUser User { get; set; }
-    public DateTime EnrollmentDate { get; set; }
+
+    // maps to sql "student.student_id" - the school-issued student number,
+    // kept separate from the internal StudentsId primary key
+    public int? StudentNumber { get; set; }
+    public string? Major { get; set; }
     public bool IsDeleted { get; set; }
 
-    public required ICollection<Enrollments> courses { get; set; }
-    public ICollection<Submissions>? submissions { get; set; }
+    public ICollection<Enrollments>? enrollments { get; set; }
 }

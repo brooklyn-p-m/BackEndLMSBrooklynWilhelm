@@ -1,15 +1,17 @@
 public class Submissions
 {
-    public int SubmissionsId { get; set; }
-    public int AssignmentsId { get; set; }
-    public int StudentsId { get; set; }
-    public DateTime? SubmittedAt { get; set; }
-    public string? Submission { get; set; }
-    public int? Grade { get; set; }
-    public string? Feedback { get; set; }
+    public required int SubmissionsId { get; set; }
 
+    public required int AssignmentsId { get; set; }
     public required Assignments Assignment { get; set; }
-    public required Students? Student { get; set; }
 
+    public required int EnrollmentsId { get; set; }
+    public required Enrollments Enrollment { get; set; }
 
+    public decimal? Grade { get; set; }
+    public DateTime? GradingDate { get; set; }
+    public DateTime? SubmissionDate { get; set; }
+    public string? FileUrl { get; set; }
+    public string? GradeFeedback { get; set; }
+    public bool IsDeleted { get; set; }
 }

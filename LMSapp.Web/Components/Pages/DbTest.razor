@@ -1,0 +1,823 @@
+@page "/db-test"
+@rendermode InteractiveServer
+@inject AppDbContext DbContext
+@inject AppUserService AppUserService
+@inject InstructorService InstructorService
+@inject StudentService StudentService
+@inject CourseService CourseService
+@inject SemesterService SemesterService
+@inject SectionService SectionService
+@inject AssignmentService AssignmentService
+@inject EnrollmentService EnrollmentService
+@inject SubmissionService SubmissionService
+@using CourseEntity = global::Courses
+@using AssignmentEntity = global::Assignments
+@using SemesterEntity = global::Semesters
+
+<h2>DB Test Page</h2>
+<p><em>Manual smoke test for the current EF Core entities.</em></p>
+
+<button class="btn btn-danger mb-4" @onclick="DeleteAllData">Delete all test data</button>
+@if (!string.IsNullOrEmpty(_statusMessage))
+{
+    <div class="alert alert-info">@_statusMessage</div>
+}
+
+<hr />
+
+<h3>Users</h3>
+<div class="row mb-2 g-2">
+    <div class="col"><input class="form-control" placeholder="Login" @bind="_newUserLogin" /></div>
+    <div class="col"><input class="form-control" placeholder="Email" @bind="_newUserEmail" /></div>
+    <div class="col"><input class="form-control" placeholder="First name" @bind="_newUserFirstName" /></div>
+    <div class="col"><input class="form-control" placeholder="Last name" @bind="_newUserLastName" /></div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateUser">Add User</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Login</th>
+            <th>Email</th>
+            <th>First</th>
+            <th>Last</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_users != null)
+        {
+            @foreach (var u in _users)
+            {
+                <tr><td>@u.AppUserId</td>
+                    <td>@u.Login</td>
+                    <td>@u.Email</td>
+                    <td>@u.FirstName</td>
+                    <td>@u.LastName</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Instructors</h3>
+<div class="row mb-2 g-2">
+    <div class="col">
+        <select class="form-select" @bind="_selectedUserIdForInstructor">
+            <option value="0">-- select user --</option>
+            @if (_users != null)
+            {
+                @foreach (var u in _users)
+                {
+                    <option value="@u.AppUserId">@u.FirstName @u.LastName (@u.AppUserId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col"><input class="form-control" placeholder="Department" @bind="_newInstructorDepartment" /></div>
+    <div class="col"><input class="form-control" placeholder="Office" @bind="_newInstructorOffice" /></div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateInstructor">Add Instructor</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>AppUserId</th>
+            <th>Department</th>
+            <th>Office</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_instructors != null)
+        {
+            @foreach (var i in _instructors)
+            {
+                <tr><td>@i.InstructorId</td>
+                    <td>@i.AppUserId</td>
+                    <td>@i.Department</td>
+                    <td>@i.Office</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Students</h3>
+<div class="row mb-2 g-2">
+    <div class="col">
+        <select class="form-select" @bind="_selectedUserIdForStudent">
+            <option value="0">-- select user --</option>
+            @if (_users != null)
+            {
+                @foreach (var u in _users)
+                {
+                    <option value="@u.AppUserId">@u.FirstName @u.LastName (@u.AppUserId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col"><input class="form-control" type="number" placeholder="Student number" @bind="_newStudentNumber" />
+    </div>
+    <div class="col"><input class="form-control" placeholder="Major" @bind="_newStudentMajor" /></div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateStudent">Add Student</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>AppUserId</th>
+            <th>Student #</th>
+            <th>Major</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_students != null)
+        {
+            @foreach (var s in _students)
+            {
+                <tr><td>@s.StudentsId</td>
+                    <td>@s.AppUserId</td>
+                    <td>@s.StudentNumber</td>
+                    <td>@s.Major</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Semesters</h3>
+<div class="row mb-2 g-2">
+    <div class="col"><input class="form-control" placeholder="Term" @bind="_newSemesterTerm" /></div>
+    <div class="col"><input class="form-control" type="number" placeholder="Year" @bind="_newSemesterYear" /></div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateSemester">Add Semester</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Term</th>
+            <th>Year</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_semesters != null)
+        {
+            @foreach (var s in _semesters)
+            {
+                <tr><td>@s.SemestersId</td>
+                    <td>@s.Term</td>
+                    <td>@s.Year</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Courses</h3>
+<div class="row mb-2 g-2">
+    <div class="col"><input class="form-control" placeholder="Course code" @bind="_newCourseCode" /></div>
+    <div class="col"><input class="form-control" placeholder="Course title" @bind="_newCourseTitle" /></div>
+    <div class="col"><input class="form-control" type="number" placeholder="Credits" @bind="_newCourseCredits" /></div>
+    <div class="col"><input class="form-control" placeholder="Syllabus expiration" @bind="_newCourseSyllabusExp" />
+    </div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateCourse">Add Course</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Code</th>
+            <th>Title</th>
+            <th>Credits</th>
+            <th>SyllabusExp</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_courses != null)
+        {
+            @foreach (var c in _courses)
+            {
+                <tr><td>@c.CoursesId</td>
+                    <td>@c.CourseCode</td>
+                    <td>@c.CourseTitle</td>
+                    <td>@c.Credits</td>
+                    <td>@c.SyllabusExp</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Sections</h3>
+<div class="row mb-2 g-2">
+    <div class="col">
+        <select class="form-select" @bind="_selectedSemesterIdForSection">
+            <option value="0">-- select semester --</option>
+            @if (_semesters != null)
+            {
+                @foreach (var s in _semesters)
+                {
+                    <option value="@s.SemestersId">@s.Term @s.Year (@s.SemestersId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col">
+        <select class="form-select" @bind="_selectedCourseIdForSection">
+            <option value="0">-- select course --</option>
+            @if (_courses != null)
+            {
+                @foreach (var c in _courses)
+                {
+                    <option value="@c.CoursesId">@c.CourseTitle (@c.CoursesId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col">
+        <select class="form-select" @bind="_selectedInstructorIdForSection">
+            <option value="0">-- select instructor --</option>
+            @if (_instructors != null)
+            {
+                @foreach (var i in _instructors)
+                {
+                    <option value="@i.InstructorId">@i.Department (@i.InstructorId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col"><input class="form-control" type="number" placeholder="Section number" @bind="_newSectionNumber" />
+    </div>
+    <div class="col"><input class="form-control" placeholder="Class time (hh:mm:ss)" @bind="_newSectionClassTime" />
+    </div>
+    <div class="col"><input class="form-control" placeholder="Room" @bind="_newSectionRoom" /></div>
+    <div class="col-auto"><button class="btn btn-primary" @onclick="CreateSection">Add Section</button></div>
+</div>
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Section #</th>
+            <th>Course</th>
+            <th>Semester</th>
+            <th>Instructor</th>
+            <th>Room</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (_sections != null)
+        {
+            @foreach (var s in _sections)
+            {
+                <tr><td>@s.SectionsId</td>
+                    <td>@s.SectionNumber</td>
+                    <td>@s.CoursesId</td>
+                    <td>@s.SemestersId</td>
+                    <td>@s.InstructorId</td>
+                    <td>@s.Room</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+<hr />
+
+<h3>Assignments</h3>
+<div class="row mb-2 g-2">
+    <div class="col">
+        <select class="form-select" @bind="_selectedSectionIdForAssignment">
+            <option value="0">-- select section --</option>
+            @if (_sections != null)
+            {
+                @foreach (var s in _sections)
+                {
+                    <option value="@s.SectionsId">Section @s.SectionNumber (@s.SectionsId)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col"><input class="form-control" placeholder="Assignment name" @bind="_newAssignmentName" /></div>
+    <div class="col"><input class="form-control" type="datetime-local" @bind="_newAssignmentDueDate" /></div>
+    <div class="col"><input class="form-control" type="datetime-local" @bind="_newAssignmentAvailableDate" /></div>
+    <div class="col"><input class="form-control" type="datetime-local" @bind="_newAssignmentLockDate" /></div>
+    <div class="col"><input class="form-control" placeholder="URL" @bind="_newAssignmentUrl" /></div>
+    <div class="col"><input class="form-control" type="number" step="0.01" placeholder="Max points"
+                                @bind="_newAssignmentMaxPoints" /></div>
+        <div class="col-auto"><button class="btn btn-primary" @onclick="CreateAssignment">Add Assignment</button></div>
+    </div>
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>SectionId</th>
+                <th>Name</th>
+                <th>Due</th>
+                <th>MaxPoints</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_assignments != null)
+            {
+                @foreach (var a in _assignments)
+                {
+                    <tr><td>@a.AssignmentsId</td>
+                        <td>@a.SectionsId</td>
+                        <td>@a.AssignName</td>
+                        <td>@a.DueDate</td>
+                        <td>@a.MaxPoints</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    <hr />
+
+    <h3>Enrollments</h3>
+    <div class="row mb-2 g-2">
+        <div class="col">
+            <select class="form-select" @bind="_selectedStudentIdForEnrollment">
+                <option value="0">-- select student --</option>
+                @if (_students != null)
+                {
+                    @foreach (var s in _students)
+                    {
+                        <option value="@s.StudentsId">Student @s.StudentsId (@s.AppUserId)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col">
+            <select class="form-select" @bind="_selectedSectionIdForEnrollment">
+                <option value="0">-- select section --</option>
+                @if (_sections != null)
+                {
+                    @foreach (var s in _sections)
+                    {
+                        <option value="@s.SectionsId">Section @s.SectionNumber (@s.SectionsId)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col">
+            <select class="form-select" @bind="_selectedEnrollmentStatus">
+                <option value="0">Active</option>
+                <option value="1">Dropped</option>
+                <option value="2">Completed</option>
+                <option value="3">Waitlisted</option>
+            </select>
+        </div>
+        <div class="col-auto"><button class="btn btn-primary" @onclick="CreateEnrollment">Enroll</button></div>
+    </div>
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>StudentId</th>
+                <th>SectionId</th>
+                <th>Status</th>
+                <th>Enroll date</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_enrollments != null)
+            {
+                @foreach (var e in _enrollments)
+                {
+                    <tr><td>@e.EnrollmentsId</td>
+                        <td>@e.StudentsId</td>
+                        <td>@e.SectionsId</td>
+                        <td>@e.Status</td>
+                        <td>@e.EnrollDate</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    <hr />
+
+    <h3>Submissions</h3>
+    <div class="row mb-2 g-2">
+        <div class="col">
+            <select class="form-select" @bind="_selectedAssignmentIdForSubmission">
+                <option value="0">-- select assignment --</option>
+                @if (_assignments != null)
+                {
+                    @foreach (var a in _assignments)
+                    {
+                        <option value="@a.AssignmentsId">@a.AssignName (@a.AssignmentsId)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col">
+            <select class="form-select" @bind="_selectedEnrollmentIdForSubmission">
+                <option value="0">-- select enrollment --</option>
+                @if (_enrollments != null)
+                {
+                    @foreach (var e in _enrollments)
+                    {
+                        <option value="@e.EnrollmentsId">Enrollment @e.EnrollmentsId</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col"><input class="form-control" placeholder="File URL" @bind="_newSubmissionFileUrl" /></div>
+        <div class="col"><input class="form-control" type="number" step="0.01" placeholder="Grade"
+                                    @bind="_newSubmissionGrade" /></div>
+            <div class="col"><input class="form-control" placeholder="Feedback" @bind="_newSubmissionFeedback" /></div>
+            <div class="col-auto"><button class="btn btn-primary" @onclick="CreateSubmission">Submit</button></div>
+        </div>
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>AssignmentId</th>
+                    <th>EnrollmentId</th>
+                    <th>Grade</th>
+                    <th>File URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (_submissions != null)
+                {
+                    @foreach (var s in _submissions)
+                    {
+                        <tr><td>@s.SubmissionsId</td>
+                            <td>@s.AssignmentsId</td>
+                            <td>@s.EnrollmentsId</td>
+                            <td>@s.Grade</td>
+                            <td>@s.FileUrl</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+@code {
+    private List<AppUser>? _users;
+    private List<Instructor>? _instructors;
+    private List<Students>? _students;
+    private List<SemesterEntity>? _semesters;
+    private List<CourseEntity>? _courses;
+    private List<Sections>? _sections;
+    private List<AssignmentEntity>? _assignments;
+    private List<Enrollments>? _enrollments;
+    private List<Submissions>? _submissions;
+
+    private string _statusMessage = "";
+
+    private string _newUserLogin = "";
+    private string _newUserEmail = "";
+    private string _newUserFirstName = "";
+    private string _newUserLastName = "";
+    private int _selectedUserIdForInstructor;
+    private int _selectedUserIdForStudent;
+    private string _newInstructorDepartment = "";
+    private string _newInstructorOffice = "";
+    private int? _newStudentNumber;
+    private string _newStudentMajor = "";
+
+    private string _newSemesterTerm = "";
+    private int _newSemesterYear;
+
+    private string _newCourseCode = "";
+    private string _newCourseTitle = "";
+    private int _newCourseCredits;
+    private string _newCourseSyllabusExp = "";
+
+    private int _selectedSemesterIdForSection;
+    private int _selectedCourseIdForSection;
+    private int _selectedInstructorIdForSection;
+    private int _newSectionNumber;
+    private string _newSectionClassTime = "";
+    private string _newSectionRoom = "";
+
+    private int _selectedSectionIdForAssignment;
+    private string _newAssignmentName = "";
+    private DateTime? _newAssignmentDueDate;
+    private DateTime? _newAssignmentAvailableDate;
+    private DateTime? _newAssignmentLockDate;
+    private string _newAssignmentUrl = "";
+    private decimal _newAssignmentMaxPoints;
+
+    private int _selectedStudentIdForEnrollment;
+    private int _selectedSectionIdForEnrollment;
+    private int _selectedEnrollmentStatus = (int)EnrollmentStatus.Active;
+
+    private int _selectedAssignmentIdForSubmission;
+    private int _selectedEnrollmentIdForSubmission;
+    private string _newSubmissionFileUrl = "";
+    private decimal? _newSubmissionGrade;
+    private string _newSubmissionFeedback = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAll();
+    }
+
+    private async Task ReloadAll()
+    {
+        _users = (await AppUserService.GetAllAsync())?.ToList();
+        _instructors = (await InstructorService.GetAllAsync())?.ToList();
+        _students = (await StudentService.GetAllAsync())?.ToList();
+        _semesters = (await SemesterService.GetAllAsync())?.ToList();
+        _courses = (await CourseService.GetAllAsync())?.ToList();
+        _sections = (await SectionService.GetAllAsync())?.ToList();
+        _assignments = (await AssignmentService.GetAllAsync())?.ToList();
+        _enrollments = (await EnrollmentService.GetAllAsync())?.ToList();
+        _submissions = (await SubmissionService.GetAllAsync())?.ToList();
+    }
+
+    private async Task CreateUser()
+    {
+        if (string.IsNullOrWhiteSpace(_newUserLogin) || string.IsNullOrWhiteSpace(_newUserEmail))
+        {
+            _statusMessage = "Login and email are required.";
+            return;
+        }
+
+        var user = new AppUser
+        {
+            AppUserId = 0,
+            Login = _newUserLogin,
+            FirstName = _newUserFirstName,
+            LastName = _newUserLastName,
+            Email = _newUserEmail,
+            Phone = null,
+            IsDeleted = false
+        };
+
+        await AppUserService.CreateAsync(user);
+        _newUserLogin = _newUserEmail = _newUserFirstName = _newUserLastName = "";
+        _statusMessage = "User created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateInstructor()
+    {
+        if (_selectedUserIdForInstructor == 0) { _statusMessage = "Select a user first."; return; }
+
+        var user = await AppUserService.GetByIdAsync(_selectedUserIdForInstructor);
+        if (user is null) { _statusMessage = "User not found."; return; }
+
+        var instructor = new Instructor
+        {
+            InstructorId = 0,
+            AppUserId = user.AppUserId,
+            User = user,
+            Department = string.IsNullOrWhiteSpace(_newInstructorDepartment) ? null : _newInstructorDepartment,
+            Office = string.IsNullOrWhiteSpace(_newInstructorOffice) ? null : _newInstructorOffice,
+            IsDeleted = false
+        };
+
+        await InstructorService.CreateAsync(instructor);
+        _newInstructorDepartment = _newInstructorOffice = "";
+        _statusMessage = "Instructor created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateStudent()
+    {
+        if (_selectedUserIdForStudent == 0) { _statusMessage = "Select a user first."; return; }
+
+        var user = await AppUserService.GetByIdAsync(_selectedUserIdForStudent);
+        if (user is null) { _statusMessage = "User not found."; return; }
+
+        var student = new Students
+        {
+            StudentsId = 0,
+            AppUserId = user.AppUserId,
+            User = user,
+            StudentNumber = _newStudentNumber,
+            Major = string.IsNullOrWhiteSpace(_newStudentMajor) ? null : _newStudentMajor,
+            IsDeleted = false
+        };
+
+        await StudentService.CreateAsync(student);
+        _newStudentNumber = null;
+        _newStudentMajor = "";
+        _statusMessage = "Student created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateSemester()
+    {
+        if (string.IsNullOrWhiteSpace(_newSemesterTerm) || _newSemesterYear == 0)
+        {
+            _statusMessage = "Semester term and year are required.";
+            return;
+        }
+
+        var semester = new SemesterEntity
+        {
+            SemestersId = 0,
+            Term = _newSemesterTerm,
+            Year = _newSemesterYear,
+            sections = new List<Sections>()
+        };
+
+        await SemesterService.CreateAsync(semester);
+        _newSemesterTerm = "";
+        _newSemesterYear = 0;
+        _statusMessage = "Semester created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateCourse()
+    {
+        if (string.IsNullOrWhiteSpace(_newCourseCode) || string.IsNullOrWhiteSpace(_newCourseTitle))
+        {
+            _statusMessage = "Course code and title are required.";
+            return;
+        }
+
+        DateTime? syllabusExp = null;
+        if (!string.IsNullOrWhiteSpace(_newCourseSyllabusExp) && DateTime.TryParse(_newCourseSyllabusExp, out var
+tempSyllabusExp))
+        {
+            syllabusExp = tempSyllabusExp;
+        }
+
+        var course = new CourseEntity
+        {
+            CoursesId = 0,
+            CourseCode = _newCourseCode,
+            CourseTitle = _newCourseTitle,
+            Credits = _newCourseCredits,
+            SyllabusExp = syllabusExp,
+            IsDeleted = false,
+            sections = new List<Sections>()
+        };
+
+        await CourseService.CreateAsync(course);
+        _newCourseCode = _newCourseTitle = "";
+        _newCourseCredits = 0;
+        _newCourseSyllabusExp = "";
+        _statusMessage = "Course created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateSection()
+    {
+        if (_selectedSemesterIdForSection == 0 || _selectedCourseIdForSection == 0 || _selectedInstructorIdForSection == 0)
+        {
+            _statusMessage = "Choose a semester, course, and instructor.";
+            return;
+        }
+
+        var semester = await SemesterService.GetByIdAsync(_selectedSemesterIdForSection);
+        var course = await CourseService.GetByIdAsync(_selectedCourseIdForSection);
+        var instructor = await InstructorService.GetByIdAsync(_selectedInstructorIdForSection);
+
+        if (semester is null || course is null || instructor is null)
+        {
+            _statusMessage = "One of the required records was not found.";
+            return;
+        }
+
+        TimeSpan? classTime = null;
+        if (!string.IsNullOrWhiteSpace(_newSectionClassTime) && TimeSpan.TryParse(_newSectionClassTime, out var parsedTime))
+        {
+            classTime = parsedTime;
+        }
+
+        var section = new Sections
+        {
+            SectionsId = 0,
+            SectionNumber = _newSectionNumber,
+            SemestersId = semester.SemestersId,
+            Semester = semester,
+            CoursesId = course.CoursesId,
+            Course = course,
+            InstructorId = instructor.InstructorId,
+            Instructor = instructor,
+            ClassTime = classTime,
+            Room = string.IsNullOrWhiteSpace(_newSectionRoom) ? null : _newSectionRoom,
+            IsDeleted = false,
+            enrollments = new List<Enrollments>(),
+            assignments = new List<AssignmentEntity>()
+        };
+
+        await SectionService.CreateAsync(section);
+        _newSectionNumber = 0;
+        _newSectionClassTime = "";
+        _newSectionRoom = "";
+        _statusMessage = "Section created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateAssignment()
+    {
+        if (_selectedSectionIdForAssignment == 0) { _statusMessage = "Select a section first."; return; }
+        if (string.IsNullOrWhiteSpace(_newAssignmentName)) { _statusMessage = "Assignment name is required."; return; }
+
+        var section = await SectionService.GetByIdAsync(_selectedSectionIdForAssignment);
+        if (section is null) { _statusMessage = "Section not found."; return; }
+
+        var assignment = new AssignmentEntity
+        {
+            AssignmentsId = 0,
+            SectionsId = section.SectionsId,
+            Section = section,
+            AssignName = _newAssignmentName,
+            DueDate = _newAssignmentDueDate ?? DateTime.UtcNow.AddDays(7),
+            LockDate = _newAssignmentLockDate,
+            AvailableDate = _newAssignmentAvailableDate,
+            Url = string.IsNullOrWhiteSpace(_newAssignmentUrl) ? null : _newAssignmentUrl,
+            MaxPoints = _newAssignmentMaxPoints,
+            IsDeleted = false,
+            submissions = new List<Submissions>()
+        };
+
+        await AssignmentService.CreateAsync(assignment);
+        _newAssignmentName = "";
+        _newAssignmentDueDate = null;
+        _newAssignmentAvailableDate = null;
+        _newAssignmentLockDate = null;
+        _newAssignmentUrl = "";
+        _newAssignmentMaxPoints = 0;
+        _statusMessage = "Assignment created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateEnrollment()
+    {
+        if (_selectedStudentIdForEnrollment == 0 || _selectedSectionIdForEnrollment == 0)
+        {
+            _statusMessage = "Select both a student and a section.";
+            return;
+        }
+
+        var enrollment = await EnrollmentService.EnrollStudentAsync(
+            _selectedStudentIdForEnrollment,
+            _selectedSectionIdForEnrollment);
+        if (enrollment is not null)
+        {
+            enrollment.Status = (EnrollmentStatus)_selectedEnrollmentStatus;
+            await EnrollmentService.UpdateAsync(enrollment);
+        }
+
+        _statusMessage = "Enrollment created.";
+        await ReloadAll();
+    }
+
+    private async Task CreateSubmission()
+    {
+        if (_selectedAssignmentIdForSubmission == 0 || _selectedEnrollmentIdForSubmission == 0)
+        {
+            _statusMessage = "Select both an assignment and an enrollment.";
+            return;
+        }
+
+        var submission = new Submissions
+        {
+            SubmissionsId = 0,
+            AssignmentsId = _selectedAssignmentIdForSubmission,
+            Assignment = await AssignmentService.GetByIdAsync(_selectedAssignmentIdForSubmission) ?? throw new
+InvalidOperationException(),
+            EnrollmentsId = _selectedEnrollmentIdForSubmission,
+            Enrollment = await EnrollmentService.GetByIdAsync(_selectedEnrollmentIdForSubmission) ?? throw new
+InvalidOperationException(),
+            Grade = _newSubmissionGrade,
+            FileUrl = string.IsNullOrWhiteSpace(_newSubmissionFileUrl) ? null : _newSubmissionFileUrl,
+            GradeFeedback = string.IsNullOrWhiteSpace(_newSubmissionFeedback) ? null : _newSubmissionFeedback,
+            IsDeleted = false
+        };
+
+        await SubmissionService.CreateAsync(submission);
+        _newSubmissionFileUrl = "";
+        _newSubmissionGrade = null;
+        _newSubmissionFeedback = "";
+        _statusMessage = "Submission created.";
+        await ReloadAll();
+    }
+
+    private async Task DeleteAllData()
+    {
+        DbContext.Submissions.RemoveRange(DbContext.Submissions);
+        DbContext.Enrollments.RemoveRange(DbContext.Enrollments);
+        DbContext.Assignments.RemoveRange(DbContext.Assignments);
+        DbContext.Sections.RemoveRange(DbContext.Sections);
+        DbContext.Courses.RemoveRange(DbContext.Courses);
+        DbContext.Students.RemoveRange(DbContext.Students);
+        DbContext.Instructors.RemoveRange(DbContext.Instructors);
+        DbContext.Semesters.RemoveRange(DbContext.Semesters);
+        DbContext.Users.RemoveRange(DbContext.Users);
+
+        await DbContext.SaveChangesAsync();
+        _statusMessage = "All test data deleted.";
+        await ReloadAll();
+    }
+}

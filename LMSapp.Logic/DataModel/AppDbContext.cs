@@ -7,65 +7,94 @@ public class AppDbContext : DbContext
 
     }
 
-    public DbSet<Courses> Courses { get; set; }
     public DbSet<AppUser> Users { get; set; }
-    public DbSet<Enrollments> Enrollments { get; set; }
-    public DbSet<Instructor> Instructors { get; set; }
     public DbSet<Students> Students { get; set; }
+    public DbSet<Instructor> Instructors { get; set; }
+    public DbSet<Courses> Courses { get; set; }
+    public DbSet<Semesters> Semesters { get; set; }
+    public DbSet<Sections> Sections { get; set; }
+    public DbSet<Enrollments> Enrollments { get; set; }
     public DbSet<Assignments> Assignments { get; set; }
     public DbSet<Submissions> Submissions { get; set; }
-    public DbSet<Todos> Todos { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Instructor>()
-            .HasOne(i => i.User)
-            .WithMany()
-            .HasForeignKey(i => i.AppUserId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<Instructor>()
-            .HasIndex(i => i.AppUserId)
-            .IsUnique();
-
+        // User -> Student (1 -> 0/1)
         modelBuilder.Entity<Students>()
             .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.AppUserId)
+            .WithOne(u => u.Student)
+            .HasForeignKey<Students>(s => s.AppUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Students>()
             .HasIndex(s => s.AppUserId)
             .IsUnique();
 
-        modelBuilder.Entity<Courses>()
-            .HasOne(c => c.Instructor)
-            .WithMany(i => i.courses)
-            .HasForeignKey(c => c.InstructorId)
+        // User -> Instructor (1 -> 0/1)
+        modelBuilder.Entity<Instructor>()
+            .HasOne(i => i.User)
+            .WithOne(u => u.Instructor)
+            .HasForeignKey<Instructor>(i => i.AppUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<Instructor>()
+            .HasIndex(i => i.AppUserId)
+            .IsUnique();
+
+        // Course -> Section (1 -> many)
+        modelBuilder.Entity<Sections>()
+            .HasOne(sec => sec.Course)
+            .WithMany(c => c.sections)
+            .HasForeignKey(sec => sec.CoursesId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Semester -> Section (1 -> many)
+        modelBuilder.Entity<Sections>()
+            .HasOne(sec => sec.Semester)
+            .WithMany(sem => sem.sections)
+            .HasForeignKey(sec => sec.SemestersId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Instructor -> Section (1 -> many)
+        modelBuilder.Entity<Sections>()
+            .HasOne(sec => sec.Instructor)
+            .WithMany(i => i.sections)
+            .HasForeignKey(sec => sec.InstructorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Student -> Enrollment (1 -> many)
         modelBuilder.Entity<Enrollments>()
             .HasOne(e => e.Student)
-            .WithMany(s => s.courses)
+            .WithMany(s => s.enrollments)
             .HasForeignKey(e => e.StudentsId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Section -> Enrollment (1 -> many)
         modelBuilder.Entity<Enrollments>()
-            .HasOne(e => e.Course)
-            .WithMany(c => c.students)
-            .HasForeignKey(e => e.CoursesId)
+            .HasOne(e => e.Section)
+            .WithMany(sec => sec.enrollments)
+            .HasForeignKey(e => e.SectionsId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Enrollments>()
-            .HasIndex(e => new { e.StudentsId, e.CoursesId })
+            .HasIndex(e => new { e.StudentsId, e.SectionsId })
             .IsUnique();
 
+        // Section -> Assignment (1 -> many)
         modelBuilder.Entity<Assignments>()
-            .HasOne(a => a.courses)
-            .WithMany(c => c.assignments)
-            .HasForeignKey(a => a.CoursesId)
+            .HasOne(a => a.Section)
+            .WithMany(sec => sec.assignments)
+            .HasForeignKey(a => a.SectionsId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Enrollment -> Submission (1 -> many)
+        modelBuilder.Entity<Submissions>()
+            .HasOne(s => s.Enrollment)
+            .WithMany(e => e.submissions)
+            .HasForeignKey(s => s.EnrollmentsId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Assignment -> Submission (1 -> many)
         modelBuilder.Entity<Submissions>()
             .HasOne(s => s.Assignment)
             .WithMany(a => a.submissions)
@@ -73,20 +102,8 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Submissions>()
-            .HasOne(s => s.Student)
-            .WithMany(st => st.submissions)
-            .HasForeignKey(s => s.StudentsId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<Submissions>()
-            .HasIndex(s => new { s.AssignmentsId, s.StudentsId })
+            .HasIndex(s => new { s.AssignmentsId, s.EnrollmentsId })
             .IsUnique();
 
-        modelBuilder.Entity<Todos>()
-            .HasOne(t => t.User)
-            .WithMany(u => u.todos)
-            .HasForeignKey(t => t.AppUserId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
-
 }

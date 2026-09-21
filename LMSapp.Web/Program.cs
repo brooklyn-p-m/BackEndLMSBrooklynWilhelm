@@ -10,14 +10,16 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<CourseService>();
-builder.Services.AddScoped<InstructorService>();
+builder.Services.AddScoped<AppUserService>();
 builder.Services.AddScoped<StudentService>();
+builder.Services.AddScoped<InstructorService>();
+builder.Services.AddScoped<CourseService>();
+builder.Services.AddScoped<SemesterService>();
+builder.Services.AddScoped<SectionService>();
 builder.Services.AddScoped<EnrollmentService>();
 builder.Services.AddScoped<AssignmentService>();
 builder.Services.AddScoped<SubmissionService>();
-builder.Services.AddScoped<TodoService>();
-builder.Services.AddScoped<AppUserService>();
+
 
 var app = builder.Build();
 

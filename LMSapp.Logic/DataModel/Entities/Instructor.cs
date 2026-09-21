@@ -1,9 +1,13 @@
 public class Instructor
 {
-    public int InstructorId { get; set; }
-    public int AppUserId { get; set; }
+    public required int InstructorId { get; set; }
+
+    public required int AppUserId { get; set; }
     public required AppUser User { get; set; }
-    public DateTime EnrollmentDate { get; set; }
+
+    public string? Department { get; set; }
+    public string? Office { get; set; }
     public bool IsDeleted { get; set; }
-    public required ICollection<Courses> courses { get; set; }
+
+    public ICollection<Sections>? sections { get; set; }
 }
