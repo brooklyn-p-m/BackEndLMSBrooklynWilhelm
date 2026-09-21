@@ -1,11 +1,14 @@
 @page "/calendar"
+@using LMSapp.Web.Services
 @inject NavigationManager NavManager
+@inject LmsBusinessService LmsBusinessService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject SimpleAuthService AuthService
 
 <div class="lms-page">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
         <div class="brand">LMS Portal</div>
-        
+
         <nav class="nav-links">
             <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
             <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
@@ -16,7 +19,6 @@
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="content">
         <header class="header">
             <div>
@@ -30,9 +32,7 @@
         </header>
 
         <div class="calendar-layout">
-            <!-- Left Side: Main Calendar View -->
             <div class="calendar-main">
-                <!-- Month / Year Controls -->
                 <div class="month-controls">
                     <h2>@CurrentMonthYearString</h2>
                     <div class="nav-arrows">
@@ -41,9 +41,7 @@
                     </div>
                 </div>
 
-                <!-- Calendar Grid -->
                 <div class="calendar-grid">
-                    <!-- Day Labels -->
                     <div class="day-header">Sun</div>
                     <div class="day-header">Mon</div>
                     <div class="day-header">Tue</div>
@@ -52,7 +50,6 @@
                     <div class="day-header">Fri</div>
                     <div class="day-header">Sat</div>
 
-                    <!-- Day Cells -->
                     @for (int i = 0; i < StartingDayOffset; i++)
                     {
                         <div class="day-cell empty"></div>
@@ -62,13 +59,12 @@
                     {
                         var currentDay = day;
                         var eventsForDay = GetEventsForDay(currentDay);
-                        var isToday = currentDay == CurrentDate.Day && 
-                                      CurrentMonth == CurrentDate.Month && 
-                                      CurrentYear == CurrentDate.Year;
+                        var isToday = currentDay == CurrentDate.Day && CurrentMonth == CurrentDate.Month && CurrentYear ==
+                    CurrentDate.Year;
 
                         <div class="day-cell @(isToday ? "today" : "")" @onclick="() => SelectDay(currentDay)">
                             <span class="day-number">@currentDay</span>
-                            
+
                             <div class="cell-events">
                                 @foreach (var ev in eventsForDay)
                                 {
@@ -82,7 +78,6 @@
                 </div>
             </div>
 
-            <!-- Right Side: Selected Date Agenda -->
             <aside class="agenda-sidebar">
                 <h3>Agenda for @SelectedDateString</h3>
 
@@ -92,14 +87,12 @@
                         @foreach (var ev in SelectedDayEvents)
                         {
                             <div class="agenda-item">
-                                <div class="agenda-time">@ev.Time</div>
+                                <div class="agenda-time">@ev.Date.ToString("MMM dd")</div>
                                 <div class="agenda-info">
                                     <strong>@ev.Title</strong>
                                     <span>@ev.CourseCode</span>
                                 </div>
-                                <button class="btn-small" @onclick="() => OpenEventDetails(ev.Id)">
-                                    View
-                                </button>
+                                <button class="btn-small" @onclick="() => OpenEventDetails(ev.Id)">View</button>
                             </div>
                         }
                     </div>
@@ -114,100 +107,64 @@
 </div>
 
 @code {
-    private DateTime CurrentDate = new DateTime(2026, 9, 15);
-    private int CurrentMonth = 9;
-    private int CurrentYear = 2026;
-    private int SelectedDay = 15;
+    private DateTime CurrentDate = DateTime.Today;
+    private int CurrentMonth => CurrentDate.Month;
+    private int CurrentYear => CurrentDate.Year;
+    private int SelectedDay = DateTime.Today.Day;
+    private List<CalendarEntryDto> EventList = new();
+    private int _studentId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            _studentId = CurrentStudentService.CurrentStudentId ?? await LmsBusinessService.GetDefaultStudentIdAsync();
+            if (_studentId > 0)
+            {
+                EventList = await LmsBusinessService.GetStudentCalendarEntriesAsync(_studentId);
+            }
+            StateHasChanged();
+        }
+    }
 
     private string CurrentMonthYearString => new DateTime(CurrentYear, CurrentMonth, 1).ToString("MMMM yyyy");
     private string SelectedDateString => new DateTime(CurrentYear, CurrentMonth, SelectedDay).ToString("MMM d, yyyy");
-
     private int DaysInCurrentMonth => DateTime.DaysInMonth(CurrentYear, CurrentMonth);
     private int StartingDayOffset => (int)new DateTime(CurrentYear, CurrentMonth, 1).DayOfWeek;
 
-    // Navigation methods
-    private void NavigateTo(string route)
-    {
-        NavManager.NavigateTo(route);
-    }
-
-    // Calendar Navigation Handlers
+    private void NavigateTo(string route) => NavManager.NavigateTo(route);
     private void PreviousMonth()
     {
-        if (CurrentMonth == 1)
-        {
-            CurrentMonth = 12;
-            CurrentYear--;
-        }
-        else
-        {
-            CurrentMonth--;
-        }
+        CurrentDate = CurrentDate.AddMonths(-1);
         SelectedDay = 1;
     }
 
     private void NextMonth()
     {
-        if (CurrentMonth == 12)
-        {
-            CurrentMonth = 1;
-            CurrentYear++;
-        }
-        else
-        {
-            CurrentMonth++;
-        }
+        CurrentDate = CurrentDate.AddMonths(1);
         SelectedDay = 1;
     }
 
     private void GoToToday()
     {
-        CurrentMonth = 9;
-        CurrentYear = 2026;
-        SelectedDay = 15;
+        CurrentDate = DateTime.Today;
+        SelectedDay = DateTime.Today.Day;
     }
 
-    private void SelectDay(int day)
+    private void SelectDay(int day) => SelectedDay = day;
+    private void AddPersonalEvent() => NavigateTo("/calendar/new-event");
+    private void OpenEventDetails(int id) => NavigateTo($"/events/{id}");
+
+    private IEnumerable<CalendarEntryDto> GetEventsForDay(int day)
     {
-        SelectedDay = day;
+        return EventList.Where(e => e.Date.Year == CurrentYear && e.Date.Month == CurrentMonth && e.Date.Day == day);
     }
 
-    private void AddPersonalEvent()
-    {
-        NavigateTo("/calendar/new-event");
-    }
-
-    private void OpenEventDetails(int id)
-    {
-        NavigateTo($"/events/{id}");
-    }
-
-    // Events Lookup
-    private IEnumerable<CalendarEvent> GetEventsForDay(int day)
-    {
-        return EventList.Where(e => e.Year == CurrentYear && e.Month == CurrentMonth && e.Day == day);
-    }
-
-    private IEnumerable<CalendarEvent> SelectedDayEvents => GetEventsForDay(SelectedDay);
-
-    // Event Model & Initial Demo Data
-    private record CalendarEvent(
-        int Id, 
-        int Year, 
-        int Month, 
-        int Day, 
-        string Time, 
-        string Title, 
-        string CourseCode, 
-        string Type
-    );
-
-    private List<CalendarEvent> EventList = new()
-    {
-        new(1, 2026, 9, 15, "10:00 AM", "Live Lecture", "CS 1010", "lecture"),
-        new(2, 2026, 9, 16, "11:59 PM", "HW 1 Due", "CS 1010", "deadline"),
-        new(3, 2026, 9, 18, "5:00 PM", "Chapter 2 Quiz", "MATH 1050", "quiz"),
-        new(4, 2026, 9, 20, "11:59 PM", "Essay Outline Due", "ENGL 1010", "deadline"),
-        new(5, 2026, 9, 24, "2:00 PM", "Review Session", "MATH 1050", "lecture")
-    };
+    private IEnumerable<CalendarEntryDto> SelectedDayEvents => GetEventsForDay(SelectedDay);
 }

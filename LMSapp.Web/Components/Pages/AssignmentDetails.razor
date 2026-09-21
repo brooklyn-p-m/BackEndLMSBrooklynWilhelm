@@ -1,0 +1,235 @@
+@page "/assignments/{id:int}"
+@using LMSapp.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using AssignmentEntity = global::Assignments
+@inject AppDbContext DbContext
+@inject NavigationManager NavManager
+@inject SimpleAuthService AuthService
+@inject AppUserService AppUserService
+@inject StudentService StudentService
+@inject LmsCurrentStudentService CurrentStudentService
+
+<div class="lms-page">
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/grades")'>Grades</button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>@Assignment?.AssignName</h1>
+                <p>@CourseTitle</p>
+            </div>
+        </header>
+
+        @if (Assignment is null)
+        {
+            <section class="section">
+                <div class="info-box">
+                    <strong>The selected assignment could not be found.</strong>
+                    <p>This usually means the assignment record is missing or the database was not seeded yet.</p>
+                    <button class="btn btn-primary" @onclick='() => NavManager.NavigateTo("/assignments")'>Back to
+                        assignments</button>
+                    </div>
+                </section>
+            }
+        else
+            {
+                <section class="section">
+                    <div class="summary-cards">
+                        <div class="stat-card">
+                            <span class="stat-label">Due Date</span>
+                            <strong class="stat-value">@Assignment.DueDate.ToString("MMM dd, yyyy")</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Max Points</span>
+                            <strong class="stat-value">@Assignment.MaxPoints</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Available</span>
+                            <strong class="stat-value">@(Assignment.AvailableDate?.ToString("MMM dd, yyyy") ?? "Not set")</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <p><strong>Submission link:</strong> @(string.IsNullOrWhiteSpace(Assignment.Url) ? "No link provided" :
+                                                                                                                                Assignment.Url)</p>
+                        <p><strong>Lock date:</strong> @(Assignment.LockDate?.ToString("MMM dd, yyyy") ?? "Not set")</p>
+                        <p><strong>Status:</strong> @CurrentStatusText</p>
+                        @if (!string.IsNullOrWhiteSpace(ExistingFeedback))
+                        {
+                            <div class="info-box">
+                                <strong>Instructor feedback:</strong>
+                                <p>@ExistingFeedback</p>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="section">
+                        <h2>Submit work</h2>
+                        <EditForm FormName="assignmentSubmissionForm" Model="this" OnValidSubmit="SubmitAssignmentAsync">
+                            <div class="field-row">
+                                <label>Submission URL or file link</label>
+                                <InputText @bind-Value="SubmissionUrl" class="form-control" />
+                            </div>
+
+                            <div class="field-row">
+                                <label>Notes</label>
+                                <InputTextArea @bind-Value="SubmissionNotes" class="form-control" rows="4" />
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                            {
+                                <p class="text-danger">@_statusMessage</p>
+                            }
+
+                            <div class="header-buttons">
+                                <button type="submit" class="btn btn-primary"
+                                        disabled="@(Assignment.DueDate < DateTime.UtcNow)">Submit assignment</button>
+                            </div>
+                        </EditForm>
+                    </section>
+                }
+            </main>
+        </div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AssignmentEntity? Assignment { get; set; }
+    private string CourseTitle { get; set; } = "";
+    private string SubmissionUrl { get; set; } = "";
+    private string SubmissionNotes { get; set; } = "";
+    private string _statusMessage = "";
+    private Submissions? ExistingSubmission { get; set; }
+    private Students? CurrentStudent { get; set; }
+
+    private string CurrentStatusText =>
+        ExistingSubmission is null ? "Not submitted yet" : ExistingSubmission.Grade.HasValue ? "Submitted and graded" :
+"Submitted";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser is null)
+            {
+                NavManager.NavigateTo("/login");
+                return;
+            }
+
+            var appUser = await AppUserService.GetByIdAsync(currentUser.AppUserId);
+            if (appUser is null)
+            {
+                return;
+            }
+
+            CurrentStudent = CurrentStudentService.CurrentStudent ?? await StudentService.GetByAppUserIdAsync(appUser.AppUserId);
+            if (CurrentStudent is not null)
+            {
+                CurrentStudentService.SetCurrentStudent(CurrentStudent);
+            }
+
+            Assignment = await DbContext.Assignments
+                .Include(a => a.Section)
+                .ThenInclude(s => s.Course)
+                .FirstOrDefaultAsync(a => a.AssignmentsId == Id && !a.IsDeleted);
+
+            if (Assignment is not null)
+            {
+                var currentStudentId = CurrentStudent?.StudentsId ?? 0;
+                var enrollment = await DbContext.Enrollments
+                    .FirstOrDefaultAsync(e => e.StudentsId == currentStudentId && e.SectionsId == Assignment.SectionsId && !e.IsDeleted);
+
+                if (enrollment is not null)
+                {
+                    ExistingSubmission = await DbContext.Submissions
+                        .FirstOrDefaultAsync(s => s.AssignmentsId == Assignment.AssignmentsId && s.EnrollmentsId == enrollment.EnrollmentsId &&
+!s.IsDeleted);
+
+                    if (ExistingSubmission is not null)
+                    {
+                        SubmissionUrl = ExistingSubmission.FileUrl ?? "";
+                        SubmissionNotes = ExistingSubmission.GradeFeedback ?? "";
+                    }
+                }
+            }
+
+            CourseTitle = Assignment?.Section?.Course?.CourseTitle ?? "Course Information";
+            StateHasChanged();
+        }
+    }
+
+    private async Task SubmitAssignmentAsync()
+    {
+        if (Assignment is null)
+        {
+            return;
+        }
+
+        if (CurrentStudent is null)
+        {
+            _statusMessage = "Please log in again to submit work.";
+            return;
+        }
+
+        var enrollment = await DbContext.Enrollments
+            .FirstOrDefaultAsync(e => e.StudentsId == CurrentStudent.StudentsId && e.SectionsId == Assignment.SectionsId &&
+!e.IsDeleted);
+
+        if (enrollment is null)
+        {
+            _statusMessage = "You are not enrolled in this course.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(SubmissionUrl) && string.IsNullOrWhiteSpace(SubmissionNotes))
+        {
+            _statusMessage = "Please provide a submission link or notes before submitting.";
+            return;
+        }
+
+        if (ExistingSubmission is null)
+        {
+            ExistingSubmission = new Submissions
+            {
+                SubmissionsId = 0,
+                AssignmentsId = Assignment.AssignmentsId,
+                Assignment = Assignment,
+                EnrollmentsId = enrollment.EnrollmentsId,
+                Enrollment = enrollment,
+                SubmissionDate = DateTime.UtcNow,
+                FileUrl = string.IsNullOrWhiteSpace(SubmissionUrl) ? null : SubmissionUrl.Trim(),
+                GradeFeedback = string.IsNullOrWhiteSpace(SubmissionNotes) ? null : SubmissionNotes.Trim(),
+                IsDeleted = false
+            };
+
+            DbContext.Submissions.Add(ExistingSubmission);
+        }
+        else
+        {
+            ExistingSubmission.FileUrl = string.IsNullOrWhiteSpace(SubmissionUrl) ? null : SubmissionUrl.Trim();
+            ExistingSubmission.GradeFeedback = string.IsNullOrWhiteSpace(SubmissionNotes) ? null : SubmissionNotes.Trim();
+            ExistingSubmission.SubmissionDate = DateTime.UtcNow;
+        }
+
+        await DbContext.SaveChangesAsync();
+        _statusMessage = "Assignment submitted successfully.";
+    }
+
+    private string ExistingFeedback => ExistingSubmission?.GradeFeedback ?? "";
+}

@@ -4,10 +4,9 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
-
     }
 
-    public DbSet<AppUser> Users { get; set; }
+    public DbSet<AppUser> AppUsers { get; set; }
     public DbSet<Students> Students { get; set; }
     public DbSet<Instructor> Instructors { get; set; }
     public DbSet<Courses> Courses { get; set; }

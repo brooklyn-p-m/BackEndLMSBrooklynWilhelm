@@ -1,0 +1,232 @@
+@page "/login"
+@using LMSapp.Web.Services
+@inject AppUserService AppUserService
+@inject StudentService StudentService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject NavigationManager NavManager
+@inject SimpleAuthService AuthService
+
+<div class="lms-page">
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/login")'>Login</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/db-test")'>Database Test</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/calendar")'>Calendar</button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>Student Access</h1>
+                <p>Sign in to your account or create a new student profile.</p>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="header-buttons" style="margin-bottom: 1rem;">
+                <button class="btn @( _showRegister ? "btn-secondary" : "btn-primary")"
+                        @onclick="ToggleRegister">@(_showRegister ? "Back to login" : "Create account")</button>
+            </div>
+
+            @if (!_showRegister)
+            {
+                <EditForm FormName="studentLoginForm" Model="_loginModel" OnValidSubmit="LoginAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="field-row">
+                        <label>Email</label>
+                        <InputText @bind-Value="_loginModel.Email" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Password</label>
+                        <InputText type="password" @bind-Value="_loginModel.Password" class="form-control" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                    {
+                        <p class="text-danger">@_statusMessage</p>
+                    }
+
+                    <div class="header-buttons">
+                        <button type="submit" class="btn btn-primary">Sign In</button>
+                    </div>
+                </EditForm>
+
+                <div class="info-box" style="margin-top: 1rem;">
+                    <strong>Demo credentials:</strong>
+                    <br />test@test.com / test123
+                    <br />maria.jones@brooklyn.edu / P@ssw0rd123
+                    <br />david.lee@brooklyn.edu / P@ssw0rd123
+                </div>
+            }
+            else
+            {
+                <EditForm FormName="studentRegisterForm" Model="_registerModel" OnValidSubmit="RegisterAsync">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="field-row">
+                        <label>First Name</label>
+                        <InputText @bind-Value="_registerModel.FirstName" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Last Name</label>
+                        <InputText @bind-Value="_registerModel.LastName" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Email</label>
+                        <InputText @bind-Value="_registerModel.Email" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Phone</label>
+                        <InputText @bind-Value="_registerModel.Phone" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Major</label>
+                        <InputText @bind-Value="_registerModel.Major" class="form-control" />
+                    </div>
+
+                    <div class="field-row">
+                        <label>Password</label>
+                        <InputText type="password" @bind-Value="_registerModel.Password" class="form-control" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_statusMessage))
+                    {
+                        <p class="text-danger">@_statusMessage</p>
+                    }
+
+                    <div class="header-buttons">
+                        <button type="submit" class="btn btn-primary">Create Student Account</button>
+                    </div>
+                </EditForm>
+            }
+        </section>
+    </main>
+</div>
+
+@code {
+    private readonly LoginModel _loginModel = new();
+    private readonly RegisterModel _registerModel = new();
+    private string _statusMessage = string.Empty;
+    private bool _showRegister;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/");
+        }
+    }
+
+    private void ToggleRegister() => _showRegister = !_showRegister;
+
+    private async Task LoginAsync()
+    {
+        var email = _loginModel.Email?.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            _statusMessage = "Please enter an email.";
+            return;
+        }
+
+        var profile = await AppUserService.GetByEmailAndPasswordAsync(email, _loginModel.Password);
+        if (profile is null)
+        {
+            _statusMessage = "No account was found for that email and password.";
+            return;
+        }
+
+        await AuthService.SetCurrentUserAsync(profile);
+
+        var student = await StudentService.GetByAppUserIdAsync(profile.AppUserId);
+        if (student is not null)
+        {
+            CurrentStudentService.SetCurrentStudent(student);
+        }
+
+        _statusMessage = string.Empty;
+        NavManager.NavigateTo("/");
+    }
+
+    private async Task RegisterAsync()
+    {
+        var email = _registerModel.Email?.Trim();
+        var firstName = _registerModel.FirstName?.Trim();
+        var lastName = _registerModel.LastName?.Trim();
+
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName) || string.IsNullOrWhiteSpace(email) ||
+string.IsNullOrWhiteSpace(_registerModel.Password))
+        {
+            _statusMessage = "Please complete the required fields before creating an account.";
+            return;
+        }
+
+        var existingProfile = await AppUserService.GetByEmailAsync(email);
+        if (existingProfile is not null)
+        {
+            _statusMessage = "An account with that email already exists.";
+            return;
+        }
+
+        var appUser = new AppUser
+        {
+            AppUserId = 0,
+            Login = (firstName + "." + lastName).ToLowerInvariant().Replace(" ", ""),
+            FirstName = firstName,
+            LastName = lastName,
+            Email = email,
+            Phone = string.IsNullOrWhiteSpace(_registerModel.Phone) ? null : _registerModel.Phone.Trim(),
+            Password = _registerModel.Password,
+            IsDeleted = false
+        };
+
+        await AppUserService.CreateAsync(appUser);
+
+        var studentNumber = Random.Shared.Next(100000, 999999);
+        var student = new Students
+        {
+            StudentsId = 0,
+            AppUserId = appUser.AppUserId,
+            User = appUser,
+            StudentNumber = studentNumber,
+            Major = string.IsNullOrWhiteSpace(_registerModel.Major) ? "Undecided" : _registerModel.Major.Trim(),
+            IsDeleted = false,
+            enrollments = new List<Enrollments>()
+        };
+
+        await StudentService.CreateAsync(student);
+        CurrentStudentService.SetCurrentStudent(student);
+        await AuthService.SetCurrentUserAsync(appUser);
+
+        _statusMessage = string.Empty;
+        NavManager.NavigateTo("/");
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = "test@test.com";
+        public string Password { get; set; } = "test123";
+    }
+
+    private class RegisterModel
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Major { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

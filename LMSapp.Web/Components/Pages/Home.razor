@@ -1,11 +1,14 @@
 ﻿@page "/"
+@using LMSapp.Web.Services
 @inject NavigationManager NavManager
+@inject LmsBusinessService LmsBusinessService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject SimpleAuthService AuthService
 
 <div class="lms-page">
-    <!-- Simple Sidebar -->
     <aside class="sidebar">
         <div class="brand">LMS Portal</div>
-        
+
         <nav class="nav-links">
             <button class="nav-btn active" @onclick='() => NavigateTo("/")'>Dashboard</button>
             <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
@@ -16,7 +19,6 @@
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="content">
         <header class="header">
             <div>
@@ -29,7 +31,6 @@
             </div>
         </header>
 
-        <!-- Quick Links -->
         <section class="section">
             <h2>Quick Actions</h2>
             <div class="button-group">
@@ -40,78 +41,98 @@
             </div>
         </section>
 
-        <!-- Current Classes -->
         <section class="section">
             <h2>My Courses</h2>
             <div class="course-list">
-                @foreach (var course in EnrolledCourses)
+                @if (EnrolledCourses.Any())
                 {
-                    <div class="course-card">
-                        <div class="course-card-header">
-                            <span class="course-badge">@course.Code</span>
-                            <h3>@course.Title</h3>
-                        </div>
-                         <p class="course-instructor">Instructor: @course.Instructor</p>
-    
-                        <div class="progress-section">
-                         <div class="progress-info">
-                        <span>Progress</span>
-                        <span>@course.Progress%</span>
-                    </div>
-                    <div class="progress-track" role="progressbar" aria-valuenow="@course.Progress" aria-valuemin="0" aria-valuemax="100">
-                    <div class="progress-fill" style="width: @course.Progress%;"></div>
-                    </div>
-                    </div>
+                    @foreach (var course in EnrolledCourses)
+                    {
+                        <div class="course-card">
+                            <div class="course-card-header">
+                                <span class="course-badge">@course.Code</span>
+                                <h3>@course.Title</h3>
+                            </div>
+                            <p class="course-instructor">Instructor: @course.Instructor</p>
 
-                     <button class="btn btn-primary" @onclick="() => OpenCourse(course.Id)">
-                         Go to Class
-                     </button>
-                    </div>
+                            <div class="progress-section">
+                                <div class="progress-info">
+                                    <span>Progress</span>
+                                    <span>@course.Progress%</span>
+                                </div>
+                                <div class="progress-track" role="progressbar" aria-valuenow="@course.Progress"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-fill" style="width: @course.Progress%;"></div>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-primary" @onclick="() => OpenCourse(course.Id)">Go to Class</button>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p>No courses are currently associated with this student profile.</p>
                 }
             </div>
         </section>
 
-        <!-- Upcoming Tasks -->
         <section class="section">
-        <h2>Upcoming Deadlines</h2>
-             <ul class="task-list">
-                <li class="task-item">
-                    <div class="task-details">
-                        <span class="task-title">Homework 1</span>
-                        <span class="course-tag">CS 1010</span>
-                        <span class="due-badge due-urgent">Due Tomorrow</span>
-                    </div>
-                    <button class="btn-small" @onclick="() => OpenTask(1)">Open</button>
-                </li>
-                <li class="task-item">
-                    <div class="task-details">
-                        <span class="task-title">Chapter 2 Quiz</span>
-                        <span class="course-tag">MATH 1050</span>
-                        <span class="due-badge due-warning">Due Friday</span>
-                    </div>
-                    <button class="btn-small" @onclick="() => OpenTask(2)">Open</button>
-                </li>
-                <li class="task-item">
-                    <div class="task-details">
-                        <span class="task-title">Discussion Post</span>
-                        <span class="course-tag">ENGL 1010</span>
-                        <span class="due-badge">Due Sunday</span>
-                    </div>
-                    <button class="btn-small" @onclick="() => OpenTask(3)">Open</button>
-                </li>
-            </ul>
+            <h2>Upcoming Deadlines</h2>
+            @if (UpcomingAssignments.Any())
+            {
+                <ul class="task-list">
+                    @foreach (var assignment in UpcomingAssignments.Take(5))
+                    {
+                        <li class="task-item">
+                            <div class="task-details">
+                                <span class="task-title">@assignment.Title</span>
+                                <span class="course-tag">@assignment.CourseCode</span>
+                                <span class="due-badge due-urgent">Due @assignment.DueDate.ToString("MMM dd")</span>
+                            </div>
+                            <button class="btn-small" @onclick="() => OpenTask(assignment.Id)">Open</button>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p>No assignments are currently due for this student.</p>
+            }
         </section>
     </main>
 </div>
 
 @code {
-    // Basic Navigation Handler
-    private void NavigateTo(string route)
+    private List<CourseSummaryDto> EnrolledCourses = new();
+    private List<AssignmentSummaryDto> UpcomingAssignments = new();
+    private int _studentId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        NavManager.NavigateTo(route);
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser is not null)
+            {
+                var student = await LmsBusinessService.GetDefaultStudentIdAsync();
+                _studentId = student;
+                EnrolledCourses = await LmsBusinessService.GetStudentCourseSummariesAsync(_studentId);
+                UpcomingAssignments = (await LmsBusinessService.GetStudentAssignmentSummariesAsync(_studentId))
+                    .OrderBy(a => a.DueDate)
+                    .ToList();
+                StateHasChanged();
+            }
+        }
     }
 
-    // Button event methods ready for your custom code
+    private void NavigateTo(string route) => NavManager.NavigateTo(route);
     private void GoToAnnouncements() => NavigateTo("/announcements");
     private void GoToProfile() => NavigateTo("/profile");
     private void GoToAssignments() => NavigateTo("/assignments");
@@ -120,14 +141,4 @@
     private void GoToDiscussions() => NavigateTo("/discussions");
     private void OpenCourse(int id) => NavigateTo($"/courses/{id}");
     private void OpenTask(int id) => NavigateTo($"/tasks/{id}");
-
-    // Course Data Record
-    private record Course(int Id, string Code, string Title, string Instructor, int Progress);
-
-    private List<Course> EnrolledCourses = new()
-    {
-        new(1, "CS 1010", "Introduction to Programming", "Smith", 75),
-        new(2, "MATH 1050", "College Algebra", "Johnson", 60),
-        new(3, "ENGL 1010", "Expository Writing", "Davis", 90)
-    };
 }

@@ -1,0 +1,183 @@
+@page "/courses/{courseId:int}"
+@using LMSapp.Web.Services
+@using Microsoft.EntityFrameworkCore
+@using CourseEntity = global::Courses
+@using AssignmentEntity = global::Assignments
+@inject AppDbContext DbContext
+@inject LmsCurrentStudentService CurrentStudentService
+@inject SimpleAuthService AuthService
+
+<div class="lms-page">
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/grades")'>Grades</button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>@(Course?.CourseTitle ?? "Course Details")</h1>
+                <p>@(Course?.CourseCode ?? string.Empty) • @InstructorName</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick='() => NavManager.NavigateTo("/courses")'>Back to
+                    courses</button>
+                </div>
+            </header>
+
+            @if (Course is null)
+            {
+                <section class="section">
+                    <div class="info-box">This course could not be found.</div>
+                </section>
+            }
+            else
+            {
+                <section class="section">
+                    <div class="summary-cards">
+                        <div class="stat-card">
+                            <span class="stat-label">Instructor</span>
+                            <strong class="stat-value">@InstructorName</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Credits</span>
+                            <strong class="stat-value">@Course.Credits</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Syllabus Exp.</span>
+                            <strong class="stat-value">@(Course.SyllabusExp?.ToString("MMM dd, yyyy") ?? "Not set")</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2>Syllabus</h2>
+                    <div class="info-box">
+                        <p><strong>Course overview:</strong> This course focuses on applied learning objectives, structured
+                            milestones, and practical work that connects theory with real project outcomes.</p>
+                            <p><strong>Learning outcomes:</strong> Students will build knowledge, practice communication, and
+                                complete assessed work aligned to course standards.</p>
+                                <p><strong>Current review date:</strong> @(Course.SyllabusExp?.ToString("MMMM dd, yyyy") ?? "No review date assigned")</p>
+                            </div>
+                        </section>
+
+                        <section class="section">
+                            <h2>Current module</h2>
+                            <div class="info-box">
+                                <p><strong>Module:</strong> @CurrentModuleTitle</p>
+                                <p>@CurrentModuleDescription</p>
+                                <p><strong>Next milestone:</strong> @NextMilestoneText</p>
+                            </div>
+                        </section>
+
+                        <section class="section">
+                            <h2>Assignments</h2>
+                            @if (Assignments.Any())
+                            {
+                                <div class="assignments-list">
+                                    @foreach (var assignment in Assignments)
+                                    {
+                                        <div class="assignment-item">
+                                            <div class="item-left">
+                                                <div class="item-details">
+                                                    <h3 class="assignment-title">@assignment.AssignName</h3>
+                                                    <p class="assignment-subtext">
+                                                        Due: @assignment.DueDate.ToString("MMM dd, yyyy") • @assignment.MaxPoints pts
+                                                    </p>
+                                                    <p class="assignment-subtext"><strong>Rubric:</strong> @GetAssignmentRubric(assignment)</p>
+                                                </div>
+                                            </div>
+                                            <div class="item-actions">
+                                                <button class="btn btn-primary"
+                                                        @onclick='() => NavManager.NavigateTo($"/assignments/{assignment.AssignmentsId}")'>Open</button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p>No assignments are associated with this course.</p>
+                            }
+                        </section>
+                    }
+                </main>
+            </div>
+
+@code {
+    [Parameter] public int CourseId { get; set; }
+
+    [Inject] private NavigationManager NavManager { get; set; } = default!;
+
+    private CourseEntity? Course { get; set; }
+    private string InstructorName { get; set; } = "TBD";
+    private List<AssignmentEntity> Assignments { get; set; } = new();
+
+    private string CurrentModuleTitle => Assignments.Count > 0
+        ? $"Week {Math.Max(1, Math.Min(Assignments.Count, 4))}: Course milestone review"
+        : "Course foundation";
+
+    private string CurrentModuleDescription => Assignments.Count > 0
+        ? "Students are working through the active assessment cycle, including individual work, project checkpoints, and final review activities."
+        : "This course is ready for the next module, content, and assignment launch.";
+
+    private string NextMilestoneText => Assignments.OrderBy(a => a.DueDate).FirstOrDefault() is var next
+        ? $"{next?.AssignName ?? "No active assignment"} is due on {next?.DueDate.ToString("MMM dd, yyyy") ?? "TBD"}."
+        : "No assignment deadlines are currently scheduled.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var section = await DbContext.Sections
+            .Include(s => s.Course)
+            .Include(s => s.Instructor)
+            .ThenInclude(i => i.User)
+            .FirstOrDefaultAsync(s => s.CoursesId == CourseId && !s.IsDeleted);
+
+        Course = section?.Course;
+        if (section is not null && section.Instructor is not null && section.Instructor.User is not null)
+        {
+            InstructorName = $"{section.Instructor.User.FirstName} {section.Instructor.User.LastName}".Trim();
+        }
+
+        if (section is not null)
+        {
+            Assignments = await DbContext.Assignments
+                .Where(a => a.SectionsId == section.SectionsId && !a.IsDeleted)
+                .OrderBy(a => a.DueDate)
+                .ToListAsync();
+        }
+    }
+
+    private static string GetAssignmentRubric(AssignmentEntity assignment)
+    {
+        var name = assignment.AssignName ?? string.Empty;
+        var lowerName = name.ToLowerInvariant();
+
+        if (lowerName.Contains("presentation") || lowerName.Contains("demo") || lowerName.Contains("review"))
+        {
+            return "Presentation 30% • Evidence 40% • Delivery 30%";
+        }
+
+        if (lowerName.Contains("reflection") || lowerName.Contains("memo") || lowerName.Contains("brief"))
+        {
+            return "Analysis 40% • Clarity 35% • Completion 25%";
+        }
+
+        if (lowerName.Contains("portfolio") || lowerName.Contains("build") || lowerName.Contains("project"))
+        {
+            return "Implementation 45% • Quality 35% • Submission 20%";
+        }
+
+        if (assignment.MaxPoints >= 150)
+        {
+            return "Research 35% • Execution 40% • Reflection 25%";
+        }
+
+        return "Completion 40% • Correctness 35% • Communication 25%";
+    }
+}

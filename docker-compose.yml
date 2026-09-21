@@ -11,6 +11,12 @@ services:
       - "5432:5432"
     volumes:
       - lmsapp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lmsapp -d lmsapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   web:
     build:
@@ -18,12 +24,16 @@ services:
       dockerfile: ./DockerFile
     container_name: lmsapp-web
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "5000:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=lmsapp;Username=lmsapp;Password=lmsapp_dev_pw"
+    volumes:
+      - lmsapp_dataprotection:/app/DataProtectionKeys
 
 volumes:
   lmsapp_pgdata:
+  lmsapp_dataprotection:

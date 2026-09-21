@@ -1,11 +1,15 @@
 @page "/assignments"
+@using LMSapp.Web.Services
 @inject NavigationManager NavManager
+@inject LmsBusinessService LmsBusinessService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject SimpleAuthService AuthService
+@inject StudentService StudentService
 
 <div class="lms-page">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
         <div class="brand">LMS Portal</div>
-        
+
         <nav class="nav-links">
             <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
             <button class="nav-btn" @onclick='() => NavigateTo("/courses")'>Courses</button>
@@ -16,7 +20,6 @@
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="content">
         <header class="header">
             <div>
@@ -28,139 +31,134 @@
             </div>
         </header>
 
-        <!-- Filter Bar -->
         <section class="section">
             <div class="filter-bar">
-                <button class="filter-btn @(currentFilter == "Pending" ? "active" : "")" 
-                        @onclick='() => SetFilter("Pending")'>
-                    Upcoming & Due (@AssignmentList.Count(a => a.Status == "Pending"))
-                </button>
-                <button class="filter-btn @(currentFilter == "Submitted" ? "active" : "")" 
-                        @onclick='() => SetFilter("Submitted")'>
-                    Submitted (@AssignmentList.Count(a => a.Status == "Submitted"))
-                </button>
-                <button class="filter-btn @(currentFilter == "Graded" ? "active" : "")" 
-                        @onclick='() => SetFilter("Graded")'>
-                    Graded (@AssignmentList.Count(a => a.Status == "Graded"))
-                </button>
-                <button class="filter-btn @(currentFilter == "All" ? "active" : "")" 
-                        @onclick='() => SetFilter("All")'>
-                    All (@AssignmentList.Count)
-                </button>
-            </div>
-        </section>
+                <button class="filter-btn @(currentFilter == "Pending" ? "active" : "")"
+                        @onclick='() => SetFilter("Pending")'>Upcoming & Due (@AssignmentList.Count(a => a.Status ==
+                        "Pending"))</button>
+                    <button class="filter-btn @(currentFilter == "Submitted" ? "active" : "")"
+                            @onclick='() => SetFilter("Submitted")'>Submitted (@AssignmentList.Count(a => a.Status ==
+                            "Submitted"))</button>
+                        <button class="filter-btn @(currentFilter == "Graded" ? "active" : "")"
+                                @onclick='() => SetFilter("Graded")'>Graded (@AssignmentList.Count(a => a.Status ==
+                                "Graded"))</button>
+                            <button class="filter-btn @(currentFilter == "All" ? "active" : "")"
+                                    @onclick='() => SetFilter("All")'>All (@AssignmentList.Count)</button>
+                        </div>
+                    </section>
 
-        <!-- Assignments List -->
-        <section class="section">
-            <div class="assignments-list">
-                @foreach (var assignment in FilteredAssignments)
-                {
-                    <div class="assignment-item">
-                        <div class="item-left">
-                            <span class="badge @assignment.Status.ToLower()">@assignment.Status</span>
-                            <div class="item-details">
-                                <h3 class="assignment-title">@assignment.Title</h3>
-                                <p class="assignment-subtext">
-                                    <span class="course-code">@assignment.CourseCode</span> • 
-                                    Due: @assignment.DueDate • 
-                                    @assignment.Points Pts
-                                </p>
+                    <section class="section">
+                        <div class="assignments-list">
+                            @if (FilteredAssignments.Any())
+                            {
+                                @foreach (var assignment in FilteredAssignments)
+                                {
+                                    <div class="assignment-item">
+                                        <div class="item-left">
+                                            <span class="badge @assignment.Status.ToLower()">@assignment.Status</span>
+                                            <div class="item-details">
+                                                <h3 class="assignment-title">@assignment.Title</h3>
+                                                <p class="assignment-subtext">
+                                                    <span class="course-code">@assignment.CourseCode</span> •
+                                                    Due: @assignment.DueDate.ToString("MMM dd, yyyy") •
+                                                    @assignment.MaxPoints Pts
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div class="item-actions">
+                                            @if (assignment.Status == "Pending")
+                                            {
+                                                <button class="btn btn-primary" @onclick="() => SubmitAssignment(assignment.Id)">Submit</button>
+                                            }
+                                            else if (assignment.Status == "Submitted")
+                                            {
+                                                <button class="btn btn-secondary" @onclick="() => ViewSubmission(assignment.Id)">View
+                                                    Submission</button>
+                                                }
+                                else if (assignment.Status == "Graded")
+                                                {
+                                                    <div class="grade-tag">@assignment.Grade</div>
+                                                    <button class="btn btn-outline" @onclick="() => ViewFeedback(assignment.Id)">Feedback</button>
+                                                }
+
+                                                <button class="btn-link" @onclick="() => OpenDetails(assignment.Id)">Details</button>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                else
+                                {
+                                    <p>No assignments are currently available for this student.</p>
+                                }
                             </div>
-                        </div>
-
-                        <div class="item-actions">
-                            @if (assignment.Status == "Pending")
-                            {
-                                <button class="btn btn-primary" @onclick="() => SubmitAssignment(assignment.Id)">
-                                    Submit
-                                </button>
-                            }
-                            else if (assignment.Status == "Submitted")
-                            {
-                                <button class="btn btn-secondary" @onclick="() => ViewSubmission(assignment.Id)">
-                                    View Submission
-                                </button>
-                            }
-                            else if (assignment.Status == "Graded")
-                            {
-                                <div class="grade-tag">@assignment.Grade</div>
-                                <button class="btn btn-outline" @onclick="() => ViewFeedback(assignment.Id)">
-                                    Feedback
-                                </button>
-                            }
-
-                            <button class="btn-link" @onclick="() => OpenDetails(assignment.Id)">
-                                Details
-                            </button>
-                        </div>
-                    </div>
-                }
-            </div>
-        </section>
-    </main>
-</div>
+                        </section>
+                    </main>
+                </div>
 
 @code {
     private string currentFilter = "Pending";
+    private List<AssignmentSummaryDto> AssignmentList = new();
+    private int _studentId;
 
-    private void SetFilter(string filter)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        currentFilter = filter;
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            _studentId = await ResolveCurrentStudentIdAsync();
+            if (_studentId <= 0)
+            {
+                _studentId = await LmsBusinessService.GetDefaultStudentIdAsync();
+            }
+
+            if (_studentId > 0)
+            {
+                AssignmentList = await LmsBusinessService.GetStudentAssignmentSummariesAsync(_studentId);
+            }
+            StateHasChanged();
+        }
     }
 
-    private IEnumerable<AssignmentItem> FilteredAssignments =>
-        currentFilter == "All" ? AssignmentList : AssignmentList.Where(a => a.Status == currentFilter);
-
-    // Navigation methods
-    private void NavigateTo(string route)
+    private async Task<int> ResolveCurrentStudentIdAsync()
     {
-        NavManager.NavigateTo(route);
+        if (CurrentStudentService.CurrentStudentId is > 0)
+        {
+            return CurrentStudentService.CurrentStudentId.Value;
+        }
+
+        var currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser is null)
+        {
+            return 0;
+        }
+
+        var student = await StudentService.GetByAppUserIdAsync(currentUser.AppUserId);
+        if (student is null)
+        {
+            return 0;
+        }
+
+        CurrentStudentService.SetCurrentStudent(student);
+        return student.StudentsId;
     }
 
-    // Action handlers ready for future code
-    private void SubmitAssignment(int id)
-    {
-        NavigateTo($"/assignments/{id}/submit");
-    }
+    private void SetFilter(string filter) => currentFilter = filter;
 
-    private void ViewSubmission(int id)
-    {
-        NavigateTo($"/assignments/{id}/submission");
-    }
+    private IEnumerable<AssignmentSummaryDto> FilteredAssignments =>
+        currentFilter == "All"
+            ? AssignmentList
+            : AssignmentList.Where(a => a.Status == currentFilter);
 
-    private void ViewFeedback(int id)
-    {
-        NavigateTo($"/assignments/{id}/feedback");
-    }
-
-    private void OpenDetails(int id)
-    {
-        NavigateTo($"/assignments/{id}");
-    }
-
-    private void GoToArchived()
-    {
-        NavigateTo("/assignments/archive");
-    }
-
-    // Model & Demo Data
-    private record AssignmentItem(
-        int Id, 
-        string CourseCode, 
-        string Title, 
-        string DueDate, 
-        int Points, 
-        string Status, 
-        string? Grade
-    );
-
-    private List<AssignmentItem> AssignmentList = new()
-    {
-        new(1, "CS 1010", "Homework 1: Loops & Arrays", "Tomorrow, 11:59 PM", 50, "Pending", null),
-        new(2, "MATH 1050", "Chapter 2 Review Problems", "Friday, 5:00 PM", 25, "Pending", null),
-        new(3, "ENGL 1010", "Essay Outline: Rhetorical Analysis", "Sunday, 11:59 PM", 100, "Pending", null),
-        new(4, "CS 1010", "Lab 1: Dev Environment Setup", "Sep 10", 20, "Graded", "20/20 (100%)"),
-        new(5, "MATH 1050", "Quiz 1: Functions", "Sep 12", 30, "Submitted", null),
-        new(6, "ENGL 1010", "Introductory Discussion Post", "Sep 08", 15, "Graded", "14/15 (93%)")
-    };
+    private void NavigateTo(string route) => NavManager.NavigateTo(route);
+    private void SubmitAssignment(int id) => NavigateTo($"/assignments/{id}/submit");
+    private void ViewSubmission(int id) => NavigateTo($"/assignments/{id}/submission");
+    private void ViewFeedback(int id) => NavigateTo($"/assignments/{id}/feedback");
+    private void OpenDetails(int id) => NavigateTo($"/assignments/{id}");
+    private void GoToArchived() => NavigateTo("/assignments/archive");
 }
