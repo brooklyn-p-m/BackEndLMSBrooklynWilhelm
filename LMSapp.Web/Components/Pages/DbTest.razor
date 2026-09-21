@@ -1,6 +1,9 @@
 @page "/db-test"
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
 @rendermode InteractiveServer
 @inject AppDbContext DbContext
+@inject LmsDataSeeder LmsDataSeeder
 @inject AppUserService AppUserService
 @inject InstructorService InstructorService
 @inject StudentService StudentService
@@ -17,7 +20,16 @@
 <h2>DB Test Page</h2>
 <p><em>Manual smoke test for the current EF Core entities.</em></p>
 
-<button class="btn btn-danger mb-4" @onclick="DeleteAllData">Delete all test data</button>
+<div class="alert alert-secondary">
+    Seeded snapshot: @(_courses?.Count ?? 0) courses, @(_sections?.Count ?? 0) sections, @(_assignments?.Count ?? 0)
+    assignments, @(_enrollments?.Count ?? 0) enrollments.
+</div>
+
+<div class="d-flex gap-2 mb-4 flex-wrap">
+    <button class="btn btn-success" @onclick="SeedDemoData">Seed demo data</button>
+    <button class="btn btn-warning" @onclick="DeleteDemoData">Delete demo data</button>
+    <button class="btn btn-danger" @onclick="DeleteAllData">Delete all test data</button>
+</div>
 @if (!string.IsNullOrEmpty(_statusMessage))
 {
     <div class="alert alert-info">@_statusMessage</div>
@@ -31,6 +43,8 @@
     <div class="col"><input class="form-control" placeholder="Email" @bind="_newUserEmail" /></div>
     <div class="col"><input class="form-control" placeholder="First name" @bind="_newUserFirstName" /></div>
     <div class="col"><input class="form-control" placeholder="Last name" @bind="_newUserLastName" /></div>
+    <div class="col"><input class="form-control" type="password" placeholder="Password" @bind="_newUserPassword" />
+    </div>
     <div class="col-auto"><button class="btn btn-primary" @onclick="CreateUser">Add User</button></div>
 </div>
 <table class="table table-sm table-striped">
@@ -482,6 +496,7 @@
     private string _newUserEmail = "";
     private string _newUserFirstName = "";
     private string _newUserLastName = "";
+    private string _newUserPassword = "P@ssw0rd123";
     private int _selectedUserIdForInstructor;
     private int _selectedUserIdForStudent;
     private string _newInstructorDepartment = "";
@@ -524,6 +539,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await LmsDataSeeder.SeedAsync();
         await ReloadAll();
     }
 
@@ -556,11 +572,12 @@
             LastName = _newUserLastName,
             Email = _newUserEmail,
             Phone = null,
+            Password = string.IsNullOrWhiteSpace(_newUserPassword) ? "P@ssw0rd123" : _newUserPassword,
             IsDeleted = false
         };
 
         await AppUserService.CreateAsync(user);
-        _newUserLogin = _newUserEmail = _newUserFirstName = _newUserLastName = "";
+        _newUserLogin = _newUserEmail = _newUserFirstName = _newUserLastName = _newUserPassword = "";
         _statusMessage = "User created.";
         await ReloadAll();
     }
@@ -804,6 +821,34 @@ InvalidOperationException(),
         await ReloadAll();
     }
 
+    private async Task SeedDemoData()
+    {
+        try
+        {
+            await LmsDataSeeder.SeedAsync();
+            _statusMessage = "Demo data seeded.";
+            await ReloadAll();
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"Demo seed failed: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteDemoData()
+    {
+        try
+        {
+            await LmsDataSeeder.ClearSeedDataAsync();
+            _statusMessage = "Demo data deleted.";
+            await ReloadAll();
+        }
+        catch (Exception ex)
+        {
+            _statusMessage = $"Demo data delete failed: {ex.Message}";
+        }
+    }
+
     private async Task DeleteAllData()
     {
         DbContext.Submissions.RemoveRange(DbContext.Submissions);
@@ -814,7 +859,7 @@ InvalidOperationException(),
         DbContext.Students.RemoveRange(DbContext.Students);
         DbContext.Instructors.RemoveRange(DbContext.Instructors);
         DbContext.Semesters.RemoveRange(DbContext.Semesters);
-        DbContext.Users.RemoveRange(DbContext.Users);
+        DbContext.AppUsers.RemoveRange(DbContext.AppUsers);
 
         await DbContext.SaveChangesAsync();
         _statusMessage = "All test data deleted.";

@@ -6,6 +6,7 @@ public class AppUser
     public required string LastName { get; set; }
     public required string Email { get; set; }
     public string? Phone { get; set; }
+    public required string Password { get; set; }
     public bool IsDeleted { get; set; }
 
     // 1 -> 0/1: a user MAY have a student profile

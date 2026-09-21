@@ -10,17 +10,29 @@ public class AppUserService : IDataService<AppUser>
 
     public async Task<AppUser?> GetByIdAsync(int appUserId)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.AppUserId == appUserId);
+        return await _context.AppUsers.FirstOrDefaultAsync(u => u.AppUserId == appUserId);
     }
 
     public async Task<IEnumerable<AppUser>?> GetAllAsync()
     {
-        return await _context.Users.Where(u => u.IsDeleted == false).ToListAsync();
+        return await _context.AppUsers.Where(u => u.IsDeleted == false).ToListAsync();
     }
 
     public async Task<AppUser?> GetByLoginAsync(string login)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Login == login);
+        return await _context.AppUsers.FirstOrDefaultAsync(u => u.Login == login);
+    }
+
+    public async Task<AppUser?> GetByEmailAsync(string email)
+    {
+        var normalized = email.Trim();
+        return await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == normalized);
+    }
+
+    public async Task<AppUser?> GetByEmailAndPasswordAsync(string email, string password)
+    {
+        var normalizedEmail = email.Trim();
+        return await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == normalizedEmail && u.Password == password);
     }
 
     public async Task<AppUser> CreateAsync(AppUser user)
@@ -32,7 +44,7 @@ public class AppUserService : IDataService<AppUser>
 
     public async Task<AppUser?> UpdateAsync(AppUser user)
     {
-        var userToUpdate = await _context.Users.FindAsync(user.AppUserId);
+        var userToUpdate = await _context.AppUsers.FindAsync(user.AppUserId);
         if (userToUpdate is null) return null;
 
         userToUpdate.FirstName = user.FirstName;
@@ -46,7 +58,7 @@ public class AppUserService : IDataService<AppUser>
 
     public async Task<bool> DeleteAsync(int appUserId)
     {
-        var userToDelete = await _context.Users.Where(u => u.IsDeleted == false && u.AppUserId == appUserId).SingleOrDefaultAsync();
+        var userToDelete = await _context.AppUsers.Where(u => u.IsDeleted == false && u.AppUserId == appUserId).SingleOrDefaultAsync();
         if (userToDelete is null) return false;
 
         userToDelete.IsDeleted = true;

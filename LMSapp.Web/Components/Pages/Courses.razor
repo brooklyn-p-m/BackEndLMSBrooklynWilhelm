@@ -1,11 +1,14 @@
 @page "/courses"
+@using LMSapp.Web.Services
 @inject NavigationManager NavManager
+@inject LmsBusinessService LmsBusinessService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject SimpleAuthService AuthService
 
 <div class="lms-page">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
         <div class="brand">LMS Portal</div>
-        
+
         <nav class="nav-links">
             <button class="nav-btn" @onclick='() => NavigateTo("/")'>Dashboard</button>
             <button class="nav-btn active" @onclick='() => NavigateTo("/courses")'>Courses</button>
@@ -16,7 +19,6 @@
         </nav>
     </aside>
 
-    <!-- Main Content -->
     <main class="content">
         <header class="header">
             <div>
@@ -28,127 +30,101 @@
             </div>
         </header>
 
-        <!-- Filter Controls -->
         <section class="section">
             <div class="filter-bar">
-                <button class="filter-btn @(currentFilter == "Current" ? "active" : "")" 
-                        @onclick='() => SetFilter("Current")'>
-                    Current Courses (@CourseList.Count(c => c.Status == "Current"))
-                </button>
-                <button class="filter-btn @(currentFilter == "Completed" ? "active" : "")" 
-                        @onclick='() => SetFilter("Completed")'>
-                    Past Courses (@CourseList.Count(c => c.Status == "Completed"))
-                </button>
-                <button class="filter-btn @(currentFilter == "All" ? "active" : "")" 
-                        @onclick='() => SetFilter("All")'>
-                    All Courses (@CourseList.Count)
-                </button>
-            </div>
-        </section>
-
-        <!-- Courses Cards Grid -->
-        <section class="section">
-            <div class="courses-grid">
-                @foreach (var course in FilteredCourses)
-                {
-                    <div class="course-card">
-                        <div class="card-header">
-                            <span class="course-code">@course.Code</span>
-                            <span class="badge @course.Status.ToLower()">@course.Status</span>
-                        </div>
-                        
-                        <h3 class="course-title">@course.Title</h3>
-                        <p class="course-meta"><strong>Instructor:</strong> Prof. @course.Instructor</p>
-                        <p class="course-meta"><strong>Term:</strong> @course.Term</p>
-                        <p class="course-meta"><strong>Credits:</strong> @course.Credits</p>
-
-                        <div class="course-progress">
-                            <label>Progress: @course.Progress%</label>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: @(course.Progress)%;"></div>
-                            </div>
-                        </div>
-
-                        <!-- Course Page Action Buttons -->
-                        <div class="card-actions">
-                            <button class="btn btn-primary full-width" @onclick="() => OpenCourse(course.Id)">
-                                Open Course
-                            </button>
-                            <div class="sub-actions">
-                                <button class="btn-link" @onclick="() => GoToModules(course.Id)">Modules</button>
-                                <span>•</span>
-                                <button class="btn-link" @onclick="() => GoToAssignments(course.Id)">Assignments</button>
-                                <span>•</span>
-                                <button class="btn-link" @onclick="() => GoToSyllabus(course.Id)">Syllabus</button>
-                            </div>
-                        </div>
+                <button class="filter-btn @(currentFilter == "Current" ? "active" : "")"
+                        @onclick='() => SetFilter("Current")'>Current Courses (@CourseList.Count(c => c.Status ==
+                        "Current"))</button>
+                    <button class="filter-btn @(currentFilter == "Completed" ? "active" : "")"
+                            @onclick='() => SetFilter("Completed")'>Past Courses (@CourseList.Count(c => c.Status ==
+                            "Completed"))</button>
+                        <button class="filter-btn @(currentFilter == "All" ? "active" : "")"
+                                @onclick='() => SetFilter("All")'>All Courses (@CourseList.Count)</button>
                     </div>
-                }
+                </section>
+
+                <section class="section">
+                    <div class="courses-grid">
+                        @if (FilteredCourses.Any())
+                        {
+                            @foreach (var course in FilteredCourses)
+                            {
+                                <div class="course-card">
+                                    <div class="card-header">
+                                        <span class="course-code">@course.Code</span>
+                                        <span class="badge @course.Status.ToLower()">@course.Status</span>
+                                    </div>
+
+                                    <h3 class="course-title">@course.Title</h3>
+                                    <p class="course-meta"><strong>Instructor:</strong> @course.Instructor</p>
+                                    <p class="course-meta"><strong>Credits:</strong> @course.Credits</p>
+                                    <p class="course-meta"><strong>Syllabus Expiration:</strong> @(course.SyllabusExp?.ToString("MMM dd, yyyy") ?? "Not set")</p>
+
+                                    <div class="course-progress">
+                                        <label>Progress: @course.Progress%</label>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: @(course.Progress)%;"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-actions">
+                                        <button class="btn btn-primary full-width" @onclick="() => OpenCourse(course.Id)">Open
+                                            Course</button>
+                                            <div class="sub-actions">
+                                                <button class="btn-link" @onclick="() => GoToModules(course.Id)">Modules</button>
+                                                <span>•</span>
+                                                <button class="btn-link" @onclick="() => GoToAssignments(course.Id)">Assignments</button>
+                                                <span>•</span>
+                                                <button class="btn-link" @onclick="() => GoToSyllabus(course.Id)">Syllabus</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                else
+                            {
+                                <p>No course records exist for the current student.</p>
+                            }
+                        </div>
+                    </section>
+                </main>
             </div>
-        </section>
-    </main>
-</div>
 
 @code {
     private string currentFilter = "Current";
+    private List<CourseSummaryDto> CourseList = new();
+    private int _studentId;
 
-    private void SetFilter(string filter)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        currentFilter = filter;
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            _studentId = CurrentStudentService.CurrentStudentId ?? await LmsBusinessService.GetDefaultStudentIdAsync();
+            if (_studentId > 0)
+            {
+                CourseList = await LmsBusinessService.GetStudentCourseSummariesAsync(_studentId);
+            }
+            StateHasChanged();
+        }
     }
 
-    private IEnumerable<CourseItem> FilteredCourses =>
-        currentFilter == "All" ? CourseList : CourseList.Where(c => c.Status == currentFilter);
+    private void SetFilter(string filter) => currentFilter = filter;
 
-    // Navigation methods
-    private void NavigateTo(string route)
-    {
-        NavManager.NavigateTo(route);
-    }
+    private IEnumerable<CourseSummaryDto> FilteredCourses =>
+        currentFilter == "All"
+            ? CourseList
+            : CourseList.Where(c => c.Status == currentFilter);
 
-    private void OpenCourse(int courseId)
-    {
-        NavigateTo($"/courses/{courseId}");
-    }
-
-    private void GoToModules(int courseId)
-    {
-        NavigateTo($"/courses/{courseId}/modules");
-    }
-
-    private void GoToAssignments(int courseId)
-    {
-        NavigateTo($"/courses/{courseId}/assignments");
-    }
-
-    private void GoToSyllabus(int courseId)
-    {
-        NavigateTo($"/courses/{courseId}/syllabus");
-    }
-
-    private void EnrollNewCourse()
-    {
-        NavigateTo("/courses/catalog");
-    }
-
-    // Model & Initial Data
-    private record CourseItem(
-        int Id, 
-        string Code, 
-        string Title, 
-        string Instructor, 
-        string Term, 
-        int Credits, 
-        int Progress, 
-        string Status
-    );
-
-    private List<CourseItem> CourseList = new()
-    {
-        new(1, "CS 1010", "Introduction to Programming", "Smith", "Fall 2026", 4, 75, "Current"),
-        new(2, "MATH 1050", "College Algebra", "Johnson", "Fall 2026", 4, 60, "Current"),
-        new(3, "ENGL 1010", "Expository Writing", "Davis", "Fall 2026", 3, 90, "Current"),
-        new(4, "HIST 1700", "American Civilization", "Taylor", "Spring 2026", 3, 100, "Completed"),
-        new(5, "COMM 1020", "Public Speaking", "Miller", "Spring 2026", 3, 100, "Completed")
-    };
+    private void NavigateTo(string route) => NavManager.NavigateTo(route);
+    private void OpenCourse(int courseId) => NavigateTo($"/courses/{courseId}");
+    private void GoToModules(int courseId) => NavigateTo($"/courses/{courseId}/modules");
+    private void GoToAssignments(int courseId) => NavigateTo($"/courses/{courseId}/assignments");
+    private void GoToSyllabus(int courseId) => NavigateTo($"/courses/{courseId}/syllabus");
+    private void EnrollNewCourse() => NavigateTo("/courses/catalog");
 }

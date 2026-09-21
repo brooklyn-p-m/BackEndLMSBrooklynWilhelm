@@ -1,0 +1,121 @@
+@page "/profile"
+@using LMSapp.Web.Services
+@inject AppUserService AppUserService
+@inject StudentService StudentService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject NavigationManager NavManager
+@inject SimpleAuthService AuthService
+
+<div class="lms-page">
+    <aside class="sidebar">
+        <div class="brand">LMS Portal</div>
+        <nav class="nav-links">
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/")'>Dashboard</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/courses")'>Courses</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/assignments")'>Assignments</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/grades")'>Grades</button>
+            <button class="nav-btn" @onclick='() => NavManager.NavigateTo("/calendar")'>Calendar</button>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <header class="header">
+            <div>
+                <h1>My Profile</h1>
+                <p>Manage your student account information.</p>
+            </div>
+            <div class="header-buttons">
+                <button class="btn btn-secondary" @onclick='() => NavManager.NavigateTo("/")'>Back to dashboard</button>
+                <button class="btn btn-primary" @onclick="LogoutAsync">Sign out</button>
+            </div>
+        </header>
+
+        @if (CurrentProfile is null)
+        {
+            <section class="section">
+                <div class="info-box">
+                    Unable to load a profile for the currently signed in user.
+                </div>
+            </section>
+        }
+        else
+        {
+            <section class="section">
+                <div class="stat-card" style="max-width: 300px; margin-bottom: 1rem;">
+                    <span class="stat-label">Student</span>
+                    <strong class="stat-value">@CurrentProfile.FirstName @CurrentProfile.LastName</strong>
+                    <span class="stat-sub">@StudentInfo?.Major</span>
+                </div>
+
+                <div class="table-container">
+                    <table class="grades-table">
+                        <tbody>
+                            <tr>
+                                <th>Login</th>
+                                <td>@CurrentProfile.Login</td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td>@CurrentProfile.Email</td>
+                            </tr>
+                            <tr>
+                                <th>Phone</th>
+                                <td>@(CurrentProfile.Phone ?? "Not provided")</td>
+                            </tr>
+                            <tr>
+                                <th>Student Number</th>
+                                <td>@(StudentInfo?.StudentNumber?.ToString() ?? "N/A")</td>
+                            </tr>
+                            <tr>
+                                <th>Major</th>
+                                <td>@(StudentInfo?.Major ?? "N/A")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </main>
+</div>
+
+@code {
+    private AppUser? CurrentProfile { get; set; }
+    private Students? StudentInfo { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !await AuthService.IsLoggedInAsync())
+        {
+            NavManager.NavigateTo("/login");
+            return;
+        }
+
+        if (firstRender)
+        {
+            var currentUser = await AuthService.GetCurrentUserAsync();
+            if (currentUser is null)
+            {
+                NavManager.NavigateTo("/login");
+                return;
+            }
+
+            CurrentProfile = await AppUserService.GetByIdAsync(currentUser.AppUserId);
+            if (CurrentProfile is not null)
+            {
+                StudentInfo = await StudentService.GetByAppUserIdAsync(CurrentProfile.AppUserId);
+                if (StudentInfo is not null)
+                {
+                    CurrentStudentService.SetCurrentStudent(StudentInfo);
+                }
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        await AuthService.ClearCurrentUserAsync();
+        CurrentStudentService.Clear();
+        NavManager.NavigateTo("/login");
+    }
+}

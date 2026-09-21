@@ -1,0 +1,14 @@
+@page "/logout"
+@using LMSapp.Web.Services
+@inject SimpleAuthService AuthService
+@inject LmsCurrentStudentService CurrentStudentService
+@inject NavigationManager NavManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.ClearCurrentUserAsync();
+        CurrentStudentService.Clear();
+        NavManager.NavigateTo("/login");
+    }
+}
